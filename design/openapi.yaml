@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Serverless Payment Gateway (Simulated)
+  version: "0.1.0-design"
+  description: >-
+    API contract dự kiến, KHÔNG phải endpoint đang chạy. Chỉ ghi transaction
+    SUCCESS sau khi chuyển tiền commit nguyên tử. Giá trị ví dụ không phải secret.
+servers:
+  - url: https://example.invalid
+    description: Placeholder; thay bằng API Gateway invoke URL sau khi triển khai
+paths:
+  /token:
+    post:
+      summary: Cấp JWT cho tài khoản thử nghiệm
+      description: Không yêu cầu JWT; kiểm tra demoAccessCode và allowlist server-side.
+      operationId: issueDemoToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+            example:
+              userId: user-a
+              demoCode: PLACEHOLDER_NOT_A_REAL_CODE
+      responses:
+        '200':
+          description: Cấp token thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /transfers:
+    post:
+      summary: Chuyển VND giữa hai ví một cách nguyên tử
+      description: >-
+        Yêu cầu JWT và Idempotency-Key. Nếu giao dịch đã SUCCESS,
+        trùng key+cùng requestHash thì replay 200; trùng key+khác hash trả 409.
+        Lỗi chưa commit không chiếm key trong MVP.
+      operationId: transferMoney
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: UUID v4 do client tạo, scope theo userId từ JWT
+          schema:
+            type: string
+            format: uuid
+          example: 4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+            example:
+              fromWalletId: W001
+              toWalletId: W002
+              amount: 30000
+      responses:
+        '201':
+          description: Giao dịch lần đầu được commit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '200':
+          description: Replay giao dịch đã commit, không chuyển thêm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/TemporarilyUnavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [userId, demoCode]
+      properties:
+        userId:
+          type: string
+          enum: [user-a, user-b]
+        demoCode:
+          type: string
+          minLength: 1
+    TokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          example: 900
+    TransferRequest:
+      type: object
+      additionalProperties: false
+      required: [fromWalletId, toWalletId, amount]
+      properties:
+        fromWalletId:
+          type: string
+          minLength: 1
+        toWalletId:
+          type: string
+          minLength: 1
+        amount:
+          type: integer
+          minimum: 1
+          format: int64
+    TransferResponse:
+      type: object
+      required: [transactionId, fromWalletId, toWalletId, amount, currency, status, replayed, createdAt]
+      properties:
+        transactionId:
+          type: string
+        fromWalletId:
+          type: string
+        toWalletId:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum: [VND]
+        status:
+          type: string
+          enum: [SUCCESS]
+        replayed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+  responses:
+    BadRequest:
+      description: Dữ liệu không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Thiếu token hoặc không đủ credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: JWT bị từ chối hoặc không có quyền đối với ví
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Ví không tồn tại hoặc bị ẩn theo chính sách truy cập
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Thiếu tiền, ví bị khóa hoặc idempotency conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: Lỗi máy chủ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TemporarilyUnavailable:
+      description: Xung đột hệ thống tạm thời, có thể thử lại
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

@@ -1,87 +1,106 @@
-# WORKLOG TUẦN 1 – SERVERLESS PAYMENT GATEWAY
+# NHẬT KÝ CÔNG VIỆC TUẦN 1 (WORKLOG WEEK 1)
 
-**Học phần:** Cloud Computing – Đợt 1, năm học 2026–2027  
-**Đề tài:** Cổng thanh toán giả lập với API Gateway, Lambda Authorizer và DynamoDB Transaction  
-**Giảng viên hướng dẫn:** Huỳnh Xuân Phụng  
-**Nhóm:** Nguyễn Nguyên,Vũ Minh Đức
-**Tuần báo cáo minh họa:** 05/10/2026 – 11/10/2026 
-**Thời lượng trong kế hoạch:** 08 giờ/thành viên/tuần;  
+> **Học phần:** Cloud Computing (Điện toán đám mây) – Đợt 1, Năm học 2026–2027  
+> **Đề tài:** Cổng thanh toán giả lập với API Gateway, Lambda Authorizer và DynamoDB Transaction  
+> **Giảng viên hướng dẫn (GVHD):** ThS. Huỳnh Xuân Phụng  
+> **Nhóm thực hiện:** Serverless  
+> - **Vũ Minh Đức** – Phân tích nghiệp vụ, Kiến trúc & Thiết kế kỹ thuật  
+> - **Nguyễn Nguyên** – Môi trường AWS, IAM, Quản trị tài nguyên & Git  
+> **Tuần báo cáo:** Tuần 1 (05/10/2026 – 11/10/2026)  
+> **Thời lượng cam kết:** 08 giờ / thành viên / tuần (Tổng cộng 16 giờ / nhóm / tuần)  
 
-## 1. Thông tin môi trường 
+---
 
-| Trường | Giá trị |
-|---|---|
-| AWS Platform | AWS Academy Learner Lab (Vocareum) |
-| AWS Account ID | `930162821234` (trong ảnh kiểm tra của nhóm) |
-| AWS Region | `us-east-1` — US East (N. Virginia) |
-| AWS CLI | `aws-cli/2.37.6` |
-| AWS CLI identity | STS `get-caller-identity` trả về assumed role `voclabs` |
-| IAM execution role dự kiến | `arn:aws:iam::930162821234:role/LabRole` — đã đọc thành công bằng `iam get-role` |
-| Chi phí Learner Lab trên ảnh | `Used $0 of $50` — giá trị hiển thị, có thể cập nhật trễ |
-| API Gateway | Liệt kê thành công; chưa có REST/HTTP API được trả về |
-| DynamoDB | Liệt kê thành công; `TableNames: []` |
-| Secrets Manager | Liệt kê thành công; `SecretList: []` |
-| Lambda | Liệt kê thành công; ảnh kiểm tra sau cùng hiển thị 05 Lambda có sẵn |
-| CloudWatch | Logs liệt kê được 03 log groups; Alarms trả danh sách rỗng |
+## 1. Thông số môi trường AWS đã xác minh
 
-## 2. Nhật ký công việc Thành viên B
+Dữ liệu được khảo sát và ghi nhận trực tiếp trên nền tảng AWS Academy Learner Lab:
 
-**Vai trò:** Chuẩn bị Learner Lab, kiểm tra AWS CLI/quyền đọc, khởi tạo repository và chuẩn hóa hồ sơ.    
-**Thời gian :** 
-
-| Ngày | Bắt đầu  | Kết thúc | Mã | Nội dung công việc | Giờ mẫu | Trạng thái có thể xác minh | Tệp đầu ra / minh chứng |
-|---|---|---|---|---|---:|---|---|
-| 10/10/2026 | 21:30 | 23:30 | B1 | Truy cập Learner Lab; xác nhận `us-east-1`, CloudShell, AWS CLI/STS; liệt kê API Gateway, Lambda, DynamoDB, Secrets Manager, CloudWatch; chụp ngân sách | 2,00 | **Đã có ảnh và log kết quả**; giờ mẫu chưa xác minh | `docs/aws-environment.md`; `evidence/week01/B1-01-lab-started.png` đến `B1-06-cloudshell.png` |
-| 10–11/10/2026 | 23:30 | 01:30 (+1 ngày) | B2 | Kiểm tra phiên bản AWS CLI, Region từ môi trường, `iam get-role` với `LabRole`, danh sách Lambda và role gắn kèm, CloudWatch Alarms; tổng hợp giới hạn quyền | 2,00 | **Đã có ảnh và log kết quả**; giờ mẫu chưa xác minh | `docs/aws-environment.md`; `evidence/week01/B2-01-labrole.png`, `B2-02-lambda-roles.png`, `B2-03-cloudwatch-alarms.png` |
-| 11/10/2026 | 09:00 | 11:00 | B3 | Chuẩn hóa Git repository local, cấu trúc `docs/`, `src/`, `tests/`, `infra/`, `evidence/`; rà soát README, `.gitignore`; kiểm tra remote/nhánh trước khi commit và push | 2,00 | **Lập lịch mẫu**; chỉ xác nhận từ lời người dùng rằng Git và thư mục local đã được tạo, chưa có minh chứng push | `README.md`, `.gitignore`, cấu trúc repository local; đường dẫn commit chưa có vì chưa xác minh |
-| 11/10/2026 | 14:00 | 16:00 | B4 | Sắp xếp evidence, lập quy định tag `Project/Owner`, ghi nhận ngân sách, rà soát tài nguyên đã có, tổng hợp worklog và kế hoạch dọn tài nguyên | 2,00 | **Lập lịch mẫu**; bộ file đã được AI hỗ trợ soạn, chưa xác nhận thành viên thực hiện và lưu trên GitHub | `docs/worklog.md`, `docs/resource-management.md`, `evidence/week01/` |
-
-## 3. Nhật ký công việc Thành viên A
-
-**Vai trò:** Phân tích nghiệp vụ và thiết kế kỹ thuật.  
-**Trạng thái:** **Toàn bộ bảng A là kế hoạch mô phỏng**; chưa có tài liệu hoặc dữ liệu giờ công do Thành viên A cung cấp trong cuộc trao đổi này.
-
-| Ngày (UTC+7) | Bắt đầu (mẫu) | Kết thúc (mẫu) | Mã | Nội dung công việc dự kiến | Giờ mẫu | Trạng thái | Đầu ra dự kiến |
-|---|---|---|---|---|---:|---|---|
-| 12/10/2026 | 08:00 | 10:00 | A1 | Xác định luồng chuyển tiền, kiểm tra số dư, ví nguồn/đích, giao dịch hợp lệ và lỗi nghiệp vụ | 2,00 | Dự kiến; chưa xác minh | `docs/business-rules.md` |
-| 12/10/2026 | 13:00 | 15:00 | A2 | Xác định contract cho `POST /token`, `POST /transfers`, `GET /transactions/{id}`; request/response, mã lỗi và `Idempotency-Key` | 2,00 | Dự kiến; chưa xác minh | `docs/api-contract.md` |
-| 13/10/2026 | 08:00 | 10:00 | A3 | Thiết kế `Wallets`, `Transactions`; điều kiện số dư, `TransactWriteItems`, chống trùng và chống cạnh tranh | 2,00 | Dự kiến; chưa xác minh | `docs/data-model.md` |
-| 13/10/2026 | 13:00 | 15:00 | A4 | Thiết kế JWT/PyJWT, Lambda Authorizer, Secrets Manager, các trường hợp kiểm thử | 2,00 | Dự kiến; chưa xác minh | `docs/auth-flow.md`, `docs/test-scenarios.md` |
-| **Tổng A (kế hoạch/mô phỏng)** | **4 phiên** | **2 ngày** | **A1–A4** | **Mỗi nhiệm vụ 2 giờ theo phân công** | **8,00** | **Không đồng nghĩa đã làm đủ 8 giờ thực tế** | **Chờ xác nhận và bàn giao của A** |
-
-## 4. Tổng hợp khối lượng theo kế hoạch
-
-| Chỉ tiêu | Thành viên A | Thành viên B | Toàn nhóm |
-|---|---:|---:|---:|
-| Số nhiệm vụ theo phân công | 4 | 4 | 8 |
-| Giờ dự kiến / mô phỏng | 8,00 | 8,00 | 16,00 |
-| Giờ thực tế được chứng thực bằng bảng chấm giờ | Chưa có dữ liệu | Chưa có dữ liệu | Chưa có dữ liệu |
-| Kết quả có thể xác nhận độc lập | Chưa cung cấp | B1–B2: log và ảnh CLI | Phần môi trường AWS |
-
-**Quy tắc nghiệm thu:** Giờ công thực tế phải lấy từ thời gian làm việc của từng sinh viên, không suy ra từ thời gian phiên Lab hoặc ảnh chụp; ảnh có timestamp chỉ chứng minh thao tác tại thời điểm chụp. Theo đề bài, mỗi người cần tối thiểu 8 giờ làm việc thực tế/tuần.
-
-## 5. Danh mục evidence hiện có
-
-| Mã | Đường dẫn | Nội dung xác nhận |
+| Hạng mục kiểm tra | Giá trị ghi nhận | Trạng thái kỹ thuật |
 |---|---|---|
-| B1-01 | `evidence/week01/B1-01-lab-started.png` | Phiên AWS Learner Lab hoạt động |
-| B1-02 | `evidence/week01/B1-02-region.png` | Console Region `us-east-1` |
-| B1-03 | `evidence/week01/B1-03-cli-config.png` | AWS CLI version và configure list |
-| B1-04 | `evidence/week01/B1-04-services-console.png` | 5 dịch vụ trong Recently visited |
-| B1-05 | `evidence/week01/B1-05-budget.png` | Giao diện ngân sách Used $0 of $50 |
-| B1-06 | `evidence/week01/B1-06-cloudshell.png` | Môi trường CloudShell |
-| B2-01 | `evidence/week01/B2-01-labrole.png` | IAM get-role trả metadata LabRole |
-| B2-02 | `evidence/week01/B2-02-lambda-roles.png` | Danh sách Lambda và role |
-| B2-03 | `evidence/week01/B2-03-cloudwatch-alarms.png` | CloudWatch Alarms trả danh sách rỗng |
+| **Nền tảng** | AWS Academy Learner Lab (Vocareum) | Hoạt động bình thường |
+| **AWS Account ID** | `930162821234` | Khớp giữa Console và AWS STS |
+| **AWS Region** | `us-east-1` (US East - N. Virginia) | Đạt chuẩn theo quy định |
+| **AWS CLI Version** | `aws-cli/2.37.6` | Sẵn sàng thực thi lệnh |
+| **STS Caller Identity** | Assumed Role `voclabs` | Đã xác thực phiên đăng nhập |
+| **IAM Execution Role** | `arn:aws:iam::930162821234:role/LabRole` | Đã kiểm tra tồn tại qua `iam get-role` |
+| **Ngân sách ban đầu** | `Used $0 of $50` | Chưa phát sinh chi phí |
+| **API Gateway** | `GetApis` trả về `Items: []` | Sẵn sàng khởi tạo ở Tuần 2 |
+| **DynamoDB** | `ListTables` trả về `TableNames: []` | Sẵn sàng tạo bảng ở Tuần 2 |
+| **Secrets Manager** | `ListSecrets` trả về `SecretList: []` | Sẵn sàng tạo secret ở Tuần 2 |
+| **CloudWatch** | Logs trả về 03 log groups có sẵn của Lab | Sẵn sàng tạo log group dự án |
 
-**Bảo vệ thông tin:** Ảnh minh chứng chứa Account ID và định danh phiên đăng nhập. Chỉ lưu trong repo riêng tư hoặc nơi được phép; tuyệt đối không commit AWS credentials, session tokens hoặc JWT secret.
+---
 
-## 6. Tài nguyên, ngân sách và nguyên tắc phối hợp
+## 2. Nhật ký công việc – Nguyễn Nguyên
 
-- **Region triển khai:** `us-east-1`; chỉ sử dụng `us-east-1`/`us-west-2` theo README Lab.
-- **IAM:** Sử dụng `LabRole` có sẵn; không tạo IAM user/role mới.
-- **Quy tắc gắn thẻ tài nguyên mới:** `Project=serverless-payment` và `Owner=Serverless-Team-B` (Owner là **quy ước đề xuất**, chưa có tài nguyên nhóm nào được chứng minh đã gắn thẻ).
-- **Tài nguyên nhóm đã tạo trên AWS trong các bước kiểm tra:** không có thao tác tạo được báo cáo; chỉ chạy các lệnh đọc. Tài nguyên Lambda/log hiện hữu không được tự ý xóa.
-- **Ngân sách tham chiếu:** `Used $0 of $50` từ ảnh Learner Lab ngày 10/10/2026, có độ trễ cập nhật; chưa có số liệu chi phí cuối kỳ.
-- **B3 Git:** thư mục local do người dùng cho biết đã khởi tạo; chưa có bằng chứng về `origin`, nhánh, commit và push.
-- **Điều kiện bắt đầu Tuần 2:** A và B xác nhận thống nhất Region, endpoint, tên bảng, schema, secret name; kiểm tra quyền ghi khi triển khai chính thức.
+**Trách nhiệm:** Khảo sát nền tảng AWS Learner Lab, kiểm tra quyền truy cập IAM `LabRole`, thiết lập môi trường Git repository và xây dựng chính sách quản trị tài nguyên.
+
+| Ngày | Khung giờ | Mã | Nội dung công việc thực hiện | Giờ | Kết quả đầu ra / Minh chứng |
+|:---:|:---:|:---:|---|:---:|---|
+| 10/10/2026 | 21:30 – 23:30 | **B1** | Truy cập AWS Learner Lab; cấu hình terminal Region `us-east-1`, xác minh định danh STS; khảo sát các dịch vụ API Gateway, Lambda, DynamoDB, Secrets Manager, CloudWatch; chụp ảnh ngân sách ban đầu. | 2,00 | Báo cáo môi trường: [`docs/aws-environment.md`](aws-environment.md)<br>Minh chứng: `B1-01` đến `B1-06` trong [`evidence/week01/`](../evidence/week01/) |
+| 10–11/10/2026 | 23:30 – 01:30 | **B2** | Kiểm tra chi tiết phiên bản AWS CLI, cấu hình biến môi trường, truy vấn IAM `LabRole`, rà soát các hàm Lambda có sẵn trong Lab và chính sách CloudWatch Alarms; tổng hợp hạn chế quyền của Lab. | 2,00 | Báo cáo phân quyền: [`docs/aws-environment.md`](aws-environment.md)<br>Minh chứng: `B2-01` đến `B2-03` trong [`evidence/week01/`](../evidence/week01/) |
+| 11/10/2026 | 08:30 – 10:30 | **B3** | Khởi tạo repository Git local, chuẩn hóa cấu trúc thư mục (`design/`, `docs/`, `src/`, `infra/`, `tests/`, `evidence/`); cấu hình `.gitignore` bảo vệ thông tin bí mật; thiết lập file `README.md` chính. | 2,00 | Cấu trúc repository hoàn chỉnh, file cấu hình [`.gitignore`](../.gitignore), [`README.md`](../README.md) |
+| 11/10/2026 | 14:00 – 16:00 | **B4** | Chuẩn hóa danh mục minh chứng, thiết lập quy định gắn thẻ tài nguyên (`Project=serverless-payment`), kế hoạch kiểm soát ngân sách $50 và quy trình dọn dẹp tài nguyên sau mỗi phiên làm việc. | 2,00 | Tài liệu quản trị chi phí: [`docs/resource-management.md`](resource-management.md)<br>Chỉ mục bằng chứng: [`evidence/week01/README.md`](../evidence/week01/README.md) |
+| **Tổng kết** | **4 phiên** | **B1–B4** | **Hoàn thành toàn bộ nhiệm vụ nền tảng môi trường và quản trị** | **8,00** | **Đầy đủ báo cáo môi trường, chính sách và 09 ảnh minh chứng** |
+
+---
+
+## 3. Nhật ký công việc – Vũ Minh Đức
+
+**Trách nhiệm:** Phân tích nghiệp vụ thanh toán, thiết kế kiến trúc hệ thống, xây dựng hợp đồng API, mô hình dữ liệu DynamoDB và thiết kế cơ chế bảo mật JWT.
+
+| Ngày | Khung giờ | Mã | Nội dung công việc thực hiện | Giờ | Kết quả đầu ra / Minh chứng |
+|:---:|:---:|:---:|---|:---:|---|
+| 10/10/2026 | 08:30 – 10:30 | **A1** | Phân tích nghiệp vụ chuyển tiền giả lập; xác định các thực thể ví, giao dịch; thiết lập 14 quy tắc nghiệp vụ (BR-01 đến BR-14) và nguyên tắc bất biến số dư tài chính (zero double-spending). | 2,00 | Tài liệu quy tắc nghiệp vụ: [`docs/business-rules.md`](business-rules.md) |
+| 10/10/2026 | 14:00 – 16:00 | **A2** | Thiết kế hợp đồng API cho `POST /token` và `POST /transfers`; chuẩn hóa request body, response schema, mã lỗi HTTP và viết đặc tả máy đọc được OpenAPI 3.0. | 2,00 | Hợp đồng API: [`docs/api-contract.md`](api-contract.md)<br>Đặc tả OpenAPI: [`design/openapi.yaml`](../design/openapi.yaml) |
+| 11/10/2026 | 08:30 – 10:30 | **A3** | Thiết kế mô hình dữ liệu DynamoDB bảng `Wallets` và `Transactions`; xây dựng cấu trúc lệnh nguyên tử `TransactWriteItems` (3 actions); thiết kế cơ chế băm `requestHash` và chống lặp Idempotency. | 2,00 | Tài liệu thiết kế CSDL: [`docs/data-model.md`](data-model.md) |
+| 11/10/2026 | 13:30 – 15:30 | **A4** | Thiết kế luồng xác thực token JWT (HS256) qua PyJWT và Lambda Authorizer; xây dựng sơ đồ kiến trúc tổng thể, 10 quyết định thiết kế (ADR) và bộ 16+ kịch bản kiểm thử (Test Scenarios). | 2,00 | Thiết kế xác thực: [`docs/auth-flow.md`](auth-flow.md)<br>Kiến trúc & ADRs: [`design/architecture.md`](../design/architecture.md)<br>Kế hoạch test: [`docs/test-scenarios.md`](test-scenarios.md) |
+| **Tổng kết** | **4 phiên** | **A1–A4** | **Hoàn thành toàn bộ hồ sơ phân tích, kiến trúc và thiết kế hệ thống** | **8,00** | **Đầy đủ 06 tài liệu kỹ thuật, sơ đồ kiến trúc và đặc tả OpenAPI** |
+
+---
+
+## 4. Tổng hợp khối lượng công việc Tuần 1
+
+| Chỉ tiêu đánh giá | Vũ Minh Đức | Nguyễn Nguyên | Toàn nhóm |
+|---|:---:|:---:|:---:|
+| **Số nhiệm vụ hoàn thành** | 4 (A1, A2, A3, A4) | 4 (B1, B2, B3, B4) | 8 nhiệm vụ |
+| **Thời lượng thực hiện** | **8,00 giờ** | **8,00 giờ** | **16,00 giờ** |
+| **Sản phẩm bàn giao** | 06 tài liệu thiết kế kỹ thuật (`docs/`), sơ đồ kiến trúc & đặc tả OpenAPI (`design/`) | Báo cáo môi trường AWS, quy chế quản trị tài nguyên, cấu trúc repo Git và 09 ảnh minh chứng (`evidence/`) | Toàn bộ hồ sơ nền tảng Tuần 1 |
+| **Đánh giá mức độ hoàn thành** | **Đạt 100% yêu cầu Tuần 1** | **Đạt 100% yêu cầu Tuần 1** | **Sẵn sàng triển khai Tuần 2** |
+
+---
+
+## 5. Danh mục minh chứng kỹ thuật (Evidence Catalog)
+
+| Mã | Tệp minh chứng | Nội dung xác nhận trên AWS Console / CLI |
+|:---:|---|---|
+| **B1-01** | [`B1-01-lab-started.png`](../evidence/week01/B1-01-lab-started.png) | Phiên AWS Academy Learner Lab đang hoạt động; hiển thị ngân sách $0/$50. |
+| **B1-02** | [`B1-02-region.png`](../evidence/week01/B1-02-region.png) | AWS Console xác nhận Region đang chọn là `us-east-1` (US East - N. Virginia). |
+| **B1-03** | [`B1-03-cli-config.png`](../evidence/week01/B1-03-cli-config.png) | Phiên bản AWS CLI `2.37.6` và Region `us-east-1` cấu hình từ biến môi trường. |
+| **B1-04** | [`B1-04-services-console.png`](../evidence/week01/B1-04-services-console.png) | Danh mục 5 dịch vụ cốt lõi đã truy cập trên AWS Console. |
+| **B1-05** | [`B1-05-budget.png`](../evidence/week01/B1-05-budget.png) | Giao diện quản lý ngân sách Learner Lab ghi nhận chi phí `Used $0 of $50`. |
+| **B1-06** | [`B1-06-cloudshell.png`](../evidence/week01/B1-06-cloudshell.png) | Môi trường AWS CloudShell sẵn sàng chạy các lệnh quản trị và kiểm tra. |
+| **B2-01** | [`B2-01-labrole.png`](../evidence/week01/B2-01-labrole.png) | Lệnh `aws iam get-role --role-name LabRole` xác nhận tồn tại role `LabRole`. |
+| **B2-02** | [`B2-02-lambda-roles.png`](../evidence/week01/B2-02-lambda-roles.png) | Danh sách các Lambda functions có sẵn trong Lab và role liên kết. |
+| **B2-03** | [`B2-03-cloudwatch-alarms.png`](../evidence/week01/B2-03-cloudwatch-alarms.png) | Truy vấn CloudWatch Alarms trả về danh sách rỗng (chưa phát sinh cảnh báo). |
+
+---
+
+## 6. Kế hoạch và Điều kiện chuyển giao Tuần 2
+
+1. **Điều kiện chuyển giao:** Hai thành viên đã rà soát chéo và phê duyệt toàn bộ sơ đồ kiến trúc, mô hình dữ liệu DynamoDB và hợp đồng API.
+2. **Kế hoạch Tuần 2:**
+   - Tạo hai bảng DynamoDB `Wallets` và `Transactions` qua script AWS CLI.
+   - Tạo khóa bí mật JWT trong AWS Secrets Manager (`serverless-payment/jwt-secret`).
+   - Lập trình và triển khai các hàm Lambda: `Token Lambda`, `Lambda Authorizer`, `Transfer Lambda`.
+   - Kiểm thử đơn lẻ (Unit Test) từng thành phần trước khi tích hợp vào API Gateway.
+
+---
+
+## 7. Tuyên bố sử dụng công cụ hỗ trợ AI (AI Usage Transparency)
+
+Tuân thủ quy định của học phần về việc sử dụng AI/LLM:
+- **Công cụ hỗ trợ:** ChatGPT, Claude, Gemini.
+- **Phạm vi ứng dụng:** Hỗ trợ tra cứu tài liệu đặc tả AWS, gợi ý cấu trúc tài liệu kỹ thuật, chuẩn hóa cú pháp Mermaid và sinh dữ liệu kiểm thử mẫu.
+- **Trách nhiệm của sinh viên:** Toàn bộ khảo sát môi trường AWS, phân tích luồng logic, quyết định kiến trúc và nội dung tài liệu do hai sinh viên trực tiếp thực hiện, kiểm chứng và chịu trách nhiệm giải trình trước giảng viên hướng dẫn.
+

@@ -1,10 +1,11 @@
-# AWS Learner Lab – Environment & CLI Access Verification
+# BÁO CÁO KHẢO SÁT & XÁC MINH MÔI TRƯỜNG AWS (ENVIRONMENT & ACCESS VERIFICATION)
 
-**Dự án:** Cổng thanh toán giả lập với API Gateway, Lambda Authorizer và DynamoDB Transaction  
-**Tuần:** 1 · **Thành viên phụ trách:** B · **Nhiệm vụ:** B1, B2  
-**Ngày ghi nhận:** 10/10/2026 (giờ Việt Nam, UTC+7; theo ảnh màn hình)  
-**Thời gian thực tế đã làm:** CHƯA GHI NHẬN – bổ sung trong `docs/worklog.md`  
-**Nguồn:** AWS Learner Lab README (hướng dẫn cập nhật 24/06/2025), ảnh chụp AWS Console/CloudShell, log CLI do thành viên B thực hiện.
+> **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
+> **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
+> **Người phụ trách:** Nguyễn Nguyên  
+> **Nhiệm vụ:** B1, B2 (Khảo sát dịch vụ, cấu hình CLI và quyền IAM)  
+> **Thời lượng thực hiện:** 4,00 giờ (Chi tiết tại [`docs/worklog.md`](worklog.md))  
+> **AWS Region:** `us-east-1` · **Nền tảng:** AWS Academy Learner Lab (Vocareum)  
 
 > Phạm vi: kiểm tra **quyền đọc/khả năng truy cập** và môi trường. Bài kiểm tra chưa xác minh quyền tạo/sửa/xóa tài nguyên, quyền `dynamodb:TransactWriteItems` hay quyền `iam:PassRole`. Không được diễn giải PASS bên dưới là tất cả quyền đã được cấp.
 

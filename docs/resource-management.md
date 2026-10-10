@@ -1,9 +1,10 @@
-# Quy định quản lý tài nguyên & ngân sách – Tuần 1
+# CHÍNH SÁCH QUẢN TRỊ TÀI NGUYÊN & NGÂN SÁCH (RESOURCE & COST POLICY)
 
-**Dự án:** `serverless-payment`  
-**Phụ trách:** Nguyễn Nguyên
-**Region mặc định:** `us-east-1`  
-**Nguồn:** README AWS Learner Lab và ảnh màn hình/CLI ngày 10/10/2026.
+> **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
+> **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
+> **Người phụ trách:** Nguyễn Nguyên  
+> **Phối hợp thực hiện:** Vũ Minh Đức  
+> **AWS Region:** `us-east-1` · **Hạn mức tài khoản:** $50 USD (AWS Academy Learner Lab)  
 
 ## 1. Ngân sách quan sát
 
@@ -19,9 +20,9 @@ Không khẳng định dự án 'miễn phí' từ `Used $0`: một số chi ph�
 
 - Region: **`us-east-1`**.
 - Execution role AWS Lambda: **`LabRole`** có sẵn; không tạo IAM user/role.
-- Tags khi dịch vụ hỗ trợ: `Project=serverless-payment`; `Owner=<mã thành viên/nhóm được thống nhất>`.
+- Tags khi dịch vụ hỗ trợ: `Project=serverless-payment`; `Owner=Serverless-Team` (hoặc phân định `Owner=VuMinhDuc` / `Owner=NguyenNguyen`).
 - Tiền tố tên dự án gợi ý: `spg-` (chỉ áp dụng sau khi nhóm thống nhất tên chính thức).
-- Chỉ tạo những tài nguyên đã được thống nhất với Thành viên A; Tuần 1 hiện mới kiểm tra read-only.
+- Chỉ tạo những tài nguyên đã được thống nhất giữa Nguyễn Nguyên và Vũ Minh Đức; Tuần 1 hiện mới kiểm tra read-only.
 - Không tạo NAT Gateway, EC2, RDS hoặc cấu hình VPC Lambda nếu không có nhu cầu đã được phê duyệt.
 - Không lưu key, token, JWT secret trên GitHub; sử dụng AWS Secrets Manager khi triển khai.
 
