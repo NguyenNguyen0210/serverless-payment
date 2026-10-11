@@ -143,7 +143,7 @@ serverless-payment/
 │   ├── api-contract.md             # Đặc tả hợp đồng API (Request, Response, Error codes)
 │   ├── data-model.md               # Thiết kế CSDL DynamoDB & giao dịch ACID (TransactWriteItems)
 │   ├── auth-flow.md                # Kiến trúc xác thực JWT (PyJWT) & Lambda Authorizer
-│   ├── test-scenarios.md           # Kế hoạch & 16+ kịch bản kiểm thử (Test Scenarios)
+│   ├── test-scenarios.md           # Kế hoạch & Ma trận 19 kịch bản kiểm thử (TC-01 -> TC-19)
 │   ├── aws-environment.md          # Báo cáo khảo sát môi trường AWS Learner Lab & CLI
 │   ├── resource-management.md      # Chính sách quản trị tài nguyên & kiểm soát ngân sách $50
 │   └── worklog.md                  # Nhật ký công việc nhóm chi tiết Tuần 1
@@ -151,7 +151,7 @@ serverless-payment/
 │   └── week01/                     # Minh chứng tuần 1: Learner Lab, STS, CLI, Budget (B1-01 -> B2-03)
 │       └── README.md               # Danh mục chỉ mục minh chứng Tuần 1
 ├── examples/                       # Các ví dụ mẫu và kịch bản chạy thử
-│   └── api-examples.md             # Lệnh cURL mẫu kiểm thử API
+│   └── api-examples.md             # Hướng dẫn kiểm thử API bằng lệnh cURL
 ├── infra/                          # Kịch bản triển khai hạ tầng AWS (IaC / Scripts)
 ├── src/                            # Mã nguồn các Lambda Functions (token, authorizer, payment)
 ├── tests/                          # Bộ mã kiểm thử tự động (Unit & Integration Tests)
@@ -177,8 +177,8 @@ serverless-payment/
   - [Mô hình dữ liệu DynamoDB & Giao dịch TransactWriteItems](docs/data-model.md)
   - [Kiến trúc xác thực JWT & Lambda Authorizer](docs/auth-flow.md)
 - 🧪 **Kiểm thử & Minh chứng:**
-  - [Kế hoạch & 16+ Kịch bản kiểm thử (Test Scenarios)](docs/test-scenarios.md)
-  - [Mẫu lệnh cURL kiểm thử thực tế](examples/api-examples.md)
+  - [Kế hoạch & Ma trận 19 kịch bản kiểm thử (Test Scenarios)](docs/test-scenarios.md)
+  - [Hướng dẫn kiểm thử API bằng lệnh cURL](examples/api-examples.md)
   - [Danh mục bằng chứng xác minh môi trường Tuần 1](evidence/week01/README.md)
 - ⚙️ **Hạ tầng, Chi phí & Vận hành:**
   - [Báo cáo xác minh môi trường AWS Learner Lab](docs/aws-environment.md)
@@ -190,10 +190,10 @@ serverless-payment/
 
 ### Phân công thành viên
 
-| Thành viên | Trách nhiệm chính |
+| Thành viên | Trách nhiệm chính trong đồ án |
 |---|---|
-| **Vũ Minh Đức** | Phân tích quy tắc nghiệp vụ (A1); Đặc tả API Contract (A2); Thiết kế mô hình dữ liệu DynamoDB & TransactWriteItems (A3); Thiết kế xác thực JWT, Lambda Authorizer và bộ kịch bản kiểm thử (A4). |
-| **Nguyễn Nguyên** | Khảo sát môi trường AWS Academy Learner Lab (B1); Kiểm tra quyền truy cập IAM `LabRole`, AWS CLI & giới hạn dịch vụ (B2); Khởi tạo và chuẩn hóa repository Git (B3); Giám sát ngân sách $50, quy định gắn thẻ tài nguyên và tổng hợp hồ sơ evidence (B4). |
+| **Vũ Minh Đức** | Phân tích nghiệp vụ chuyển tiền; Đặc tả hợp đồng API & OpenAPI 3.0; Thiết kế CSDL DynamoDB & giao dịch ACID TransactWriteItems; Thiết kế cơ chế xác thực JWT qua Lambda Authorizer và xây dựng bộ 19 kịch bản kiểm thử. |
+| **Nguyễn Nguyên** | Khảo sát nền tảng AWS Academy Learner Lab; Cấu hình AWS CLI & xác minh quyền IAM `LabRole`; Khởi tạo và chuẩn hóa cấu trúc Git repository; Xây dựng chính sách quản trị tài nguyên, kiểm soát ngân sách $50 và thu thập hồ sơ minh chứng. |
 
 ### Lộ trình thực hiện 4 tuần (Mỗi thành viên ≥ 8 giờ/tuần)
 

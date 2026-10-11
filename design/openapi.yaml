@@ -3,11 +3,16 @@ info:
   title: Serverless Payment Gateway (Simulated)
   version: "0.1.0-design"
   description: >-
-    API contract dự kiến, KHÔNG phải endpoint đang chạy. Chỉ ghi transaction
-    SUCCESS sau khi chuyển tiền commit nguyên tử. Giá trị ví dụ không phải secret.
+    Đặc tả giao diện API hệ thống cổng thanh toán giả lập không máy chủ (Serverless Payment Gateway)
+    trên AWS. Hệ thống bảo đảm tính toàn vẹn dữ liệu tài chính (DynamoDB TransactWriteItems),
+    cơ chế chống lặp yêu cầu (Idempotency) và xác thực JWT qua Lambda Authorizer.
 servers:
-  - url: https://example.invalid
-    description: Placeholder; thay bằng API Gateway invoke URL sau khi triển khai
+  - url: https://{apiId}.execute-api.us-east-1.amazonaws.com
+    description: Endpoint API Gateway HTTP API v2 tại Region us-east-1
+    variables:
+      apiId:
+        default: serverless-payment
+        description: API ID do API Gateway sinh ra sau khi triển khai
 paths:
   /token:
     post:
@@ -22,7 +27,7 @@ paths:
               $ref: '#/components/schemas/TokenRequest'
             example:
               userId: user-a
-              demoCode: PLACEHOLDER_NOT_A_REAL_CODE
+              demoCode: spg-demo-code-2026
       responses:
         '200':
           description: Cấp token thành công

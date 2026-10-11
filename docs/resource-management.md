@@ -1,64 +1,81 @@
-# CHÍNH SÁCH QUẢN TRỊ TÀI NGUYÊN & NGÂN SÁCH (RESOURCE & COST POLICY)
+# CHÍNH SÁCH QUẢN TRỊ TÀI NGUYÊN & KIỂM SOÁT NGÂN SÁCH
 
-> **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
+> **Học phần:** Cloud Computing (Điện toán đám mây) – Đợt 1, Năm học 2026–2027  
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
-> **Người phụ trách:** Nguyễn Nguyên  
+> **Người thực hiện:** Nguyễn Nguyên  
 > **Phối hợp thực hiện:** Vũ Minh Đức  
-> **AWS Region:** `us-east-1` · **Hạn mức tài khoản:** $50 USD (AWS Academy Learner Lab)  
+> **Nền tảng:** AWS Academy Learner Lab · **Ngân sách cấp:** $50,00 USD  
+> **AWS Region:** `us-east-1` (US East - N. Virginia)  
 
-## 1. Ngân sách quan sát
+---
 
-| Thời điểm / nguồn | Used | Tổng ngân sách | Ghi chú |
-|---|---:|---:|---|
-| 10/10/2026, ảnh Learner Lab | $0 | $50 | Giá trị hiển thị, có thể trễ 8–12 giờ |
-| Buổi tiếp theo | _Cần cập nhật_ | $50 (nếu ngân sách không đổi) | Chụp ảnh mới |
-| Cuối Tuần 1 | _Cần cập nhật_ | _Cần cập nhật_ | Dùng số hiển thị thực tế |
+## 1. Mục tiêu và Nguyên tắc quản trị
 
-Không khẳng định dự án 'miễn phí' từ `Used $0`: một số chi phí xuất hiện trễ; các tài nguyên còn tồn tại có thể tiếp tục tính phí.
+Môi trường thực hành AWS Academy Learner Lab cung cấp hạn mức ngân sách cố định **$50,00 USD** cho mỗi sinh viên trong suốt kỳ học. Nhóm thiết lập chính sách quản trị tài nguyên nhằm bảo đảm:
+1. **Kiểm soát chi phí nghiêm ngặt:** Không để xảy ra tình trạng cạn kiệt ngân sách trước khi hoàn thành đồ án và bảo vệ trước giảng viên.
+2. **Minh bạch và trách nhiệm:** Mọi tài nguyên khởi tạo đều có mục đích rõ ràng, được gắn thẻ (tag) nhận diện và theo dõi thường xuyên.
+3. **An toàn hệ thống:** Không tác động vào các tài nguyên mặc định của phòng lab Vocareum, tránh rủi ro lỗi tài khoản.
 
-## 2. Quy tắc tài nguyên mới
+---
 
-- Region: **`us-east-1`**.
-- Execution role AWS Lambda: **`LabRole`** có sẵn; không tạo IAM user/role.
-- Tags khi dịch vụ hỗ trợ: `Project=serverless-payment`; `Owner=Serverless-Team` (hoặc phân định `Owner=VuMinhDuc` / `Owner=NguyenNguyen`).
-- Tiền tố tên dự án gợi ý: `spg-` (chỉ áp dụng sau khi nhóm thống nhất tên chính thức).
-- Chỉ tạo những tài nguyên đã được thống nhất giữa Nguyễn Nguyên và Vũ Minh Đức; Tuần 1 hiện mới kiểm tra read-only.
-- Không tạo NAT Gateway, EC2, RDS hoặc cấu hình VPC Lambda nếu không có nhu cầu đã được phê duyệt.
-- Không lưu key, token, JWT secret trên GitHub; sử dụng AWS Secrets Manager khi triển khai.
+## 2. Theo dõi & Kiểm soát ngân sách $50 USD
 
-## 3. Kiểm kê tài nguyên
+- **Trạng thái khởi đầu (Tuần 1):** `Used $0 of $50` (xác nhận qua ảnh minh chứng `B1-05-budget.png`).
+- **Độ trễ cập nhật của AWS Billing:** Hệ thống ghi nhận chi phí của AWS thường có độ trễ từ 8–12 giờ so với thời điểm tài nguyên thực tế hoạt động. Do đó, nhóm theo dõi ngân sách định kỳ sau mỗi phiên làm việc và không dựa hoàn toàn vào số liệu tức thời.
+- **Biện pháp tối ưu hóa chi phí:**
+  - **Kiến trúc Pure Serverless:** Chỉ sử dụng API Gateway HTTP API, Lambda và DynamoDB On-Demand. Đây là các dịch vụ tính tiền theo lượng request thực tế, gần như miễn phí trong quy mô kiểm thử đồ án.
+  - **Tuyệt đối không dùng tài nguyên tính phí theo giờ cao:** Không tạo NAT Gateway ($0,045/giờ $\approx$ $1,08/ngày), EC2 Instances hay Amazon RDS.
+  - **Giới hạn lưu trữ CloudWatch Logs:** Thiết lập thời hạn lưu log (Log Retention) là 7 ngày để tránh phát sinh chi phí lưu trữ không cần thiết.
 
-| Loại | Tên/ID | Trạng thái | Nhóm tạo? | Quy tắc xử lý |
-|---|---|---|---|---|
-| Lambda | `RedshiftOverwatch` | Có sẵn trong Lab | Không xác minh | KHÔNG sửa/xóa |
-| Lambda | `MainMonitoringFunction` | Có sẵn trong Lab | Không xác minh | KHÔNG sửa/xóa |
-| Lambda | `ModLabRole` | Có trong ảnh kiểm tra | Không xác minh | KHÔNG sửa/xóa |
-| Lambda | `RoleCreationFunction` | Có trong ảnh kiểm tra | Không xác minh | KHÔNG sửa/xóa |
-| Lambda | `RedshiftEventSubscription` | Có trong ảnh kiểm tra | Không xác minh | KHÔNG sửa/xóa |
-| DynamoDB | Chưa có bảng khi kiểm tra | 0 | Chưa tạo | Tuần 2 tạo theo schema của A |
-| API Gateway | Chưa có REST/HTTP API khi kiểm tra | 0 | Chưa tạo | Tuần 2 tạo theo contract của A |
-| Secrets Manager | Chưa có secret khi kiểm tra | 0 | Chưa tạo | Tuần 2 theo thiết kế bảo mật |
-| CloudWatch Alarms | Chưa có alarm khi kiểm tra | 0 | Chưa tạo | Thiết kế giám sát ở Tuần 3 |
-| **Tài nguyên dự án mới** | **Chưa có bằng chứng đã tạo trong Tuần 1** | **Chưa xác định** | — | Khi tạo phải bổ sung vào bảng |
+---
 
-**CloudWatch Logs đã có 3 log group:** `/aws/lambda/RedshiftEventSubscription`, `/aws/lambda/RedshiftOverwatch`, `/aws/lambda/RoleCreationFunction`; xem là tài nguyên hiện hữu chưa rõ nguồn gốc, **không xóa**.
+## 3. Quy chuẩn định danh & Gắn thẻ tài nguyên (Tagging Standards)
 
-## 4. Quy trình kết thúc buổi làm việc
+Mọi tài nguyên được nhóm tạo ra trên AWS bắt buộc phải tuân thủ chuẩn đặt tên và gắn thẻ định danh:
 
-1. Lưu mã nguồn/tài liệu/evidence và ghi worklog.
-2. Kiểm kê tài nguyên **do nhóm tạo** trong `us-east-1` (kiểm tra cả `us-west-2` nếu đã dùng), gắn tag và ghi ARN/tên.
-3. Dừng/xóa tài nguyên không còn cần thiết; đối với tài nguyên serverless không có nút `Stop` chung, chỉ xóa đúng tài nguyên nhóm sở hữu khi được phép.
-4. Chụp màn hình ngân sách và đánh dấu khoản chưa phản ánh do cập nhật chậm.
-5. Có thể kết thúc phiên Lab bằng `End Lab`; **không nhấn `Reset`** vì có thể xóa vĩnh viễn mọi tài nguyên/data. Kết thúc session không xóa mặc định mọi tài nguyên đã tạo.
+### 3.1. Tiêu chuẩn gắn thẻ (Tags)
+- `Project`: `serverless-payment`
+- `Owner`: `Serverless-Team`
+- `Environment`: `Lab`
 
-## 5. Kế hoạch chi phí và dọn dẹp Cuối kỳ
+### 3.2. Tiêu chuẩn đặt tên (Naming Convention)
+- **API Gateway:** `serverless-payment-api`
+- **Lambda Functions:** `serverless-payment-token`, `serverless-payment-authorizer`, `serverless-payment-transfer`
+- **DynamoDB Tables:** `Wallets`, `Transactions`
+- **Secrets Manager:** `serverless-payment/jwt-secret`
+- **CloudWatch Log Groups:** `/aws/lambda/serverless-payment-*`
 
-- Ghi tài nguyên và ngày tạo/ngày xóa, số lượng request, lượng lưu trữ và chi phí quan sát.
-- CloudWatch Logs có thể phát sinh phí lưu trữ/ingest; cần thiết lập retention phù hợp khi triển khai.
-- Secrets Manager có thể có chi phí riêng ngay cả khi ít gọi API; xóa secret thử nghiệm không cần thiết theo quy trình an toàn.
-- Cuối kỳ kiểm tra bảng DynamoDB, secret, API Gateway, Lambda, log groups, CloudWatch alarms và đối chiếu chi phí.
-- Không xóa tài nguyên hệ thống Learner Lab hoặc tài nguyên do nhóm khác tạo.
+---
 
-## 6. Quyền ghi – Chưa kết luận
+## 4. Bảng kiểm kê tài nguyên hệ thống (Resource Inventory)
 
-Các lệnh kiểm tra tuần 1 là `get`, `list`, `describe`, nên không xác minh quyền ghi. Quyền `lambda:CreateFunction`, `iam:PassRole`, `dynamodb:TransactWriteItems`, `secretsmanager:CreateSecret` và thao tác tương tự sẽ được kiểm tra trong tuần 2 qua tài nguyên đúng phạm vi thiết kế.
+| Phân nhóm | Tên tài nguyên | Vai trò trong hệ thống | Kế hoạch quản lý |
+|---|---|---|---|
+| **Tài nguyên Lab có sẵn** | `MainMonitoringFunction`, `RedshiftOverwatch`,... | Quản trị nền tảng của Vocareum | **Giữ nguyên, tuyệt đối không chỉnh sửa hoặc xóa** |
+| **IAM Role có sẵn** | `arn:aws:iam::<ACCOUNT_ID>:role/LabRole` | Cung cấp quyền thực thi cho Lambda | Dùng làm Execution Role cho toàn bộ Lambda dự án |
+| **Dự án: Cơ sở dữ liệu** | Bảng `Wallets` và `Transactions` | Lưu trữ thông tin ví và lịch sử giao dịch | Khởi tạo ở Tuần 2 theo thiết kế CSDL DynamoDB |
+| **Dự án: API Gateway** | `serverless-payment-api` (HTTP API v2) | Tiếp nhận HTTPS request và định tuyến | Khởi tạo ở Tuần 2–3 theo hợp đồng API |
+| **Dự án: Lambda Functions** | Token, Authorizer, Transfer functions | Xử lý logic nghiệp vụ và xác thực JWT | Triển khai mã nguồn Python ở Tuần 2 |
+| **Dự án: Quản lý khóa** | `serverless-payment/jwt-secret` | Lưu trữ an toàn khóa ký JWT | Khởi tạo ở Tuần 2 trên AWS Secrets Manager |
+| **Dự án: Giám sát** | Log Groups, Metric Alarms | Theo dõi vận hành và phát hiện lỗi | Cấu hình log retention 7 ngày ở Tuần 3 |
+
+---
+
+## 5. Quy trình làm việc sau mỗi buổi thực hành
+
+Để đảm bảo an toàn cho dữ liệu và ngân sách tài khoản, nhóm thực hiện quy trình chuẩn sau mỗi phiên làm việc:
+1. **Kiểm tra và commit mã nguồn:** Đẩy toàn bộ mã nguồn, tài liệu và ảnh minh chứng lên Git repository.
+2. **Kiểm kê tài nguyên đang chạy:** Xác nhận không có tài nguyên tính phí theo giờ nào bị bỏ quên.
+3. **Kiểm tra mức tiêu thụ ngân sách:** Đối soát lại số dư tài khoản trên màn hình Vocareum.
+4. **Kết thúc phiên làm việc:**
+   - Nhấn **End Lab** trên giao diện điều khiển của Learner Lab để dừng phiên và ngắt đồng hồ đếm giờ.
+   - **Cảnh báo quan trọng:** Tuyệt đối không bao giờ nhấn nút **"Reset Lab"** vì thao tác này sẽ xóa sạch toàn bộ tài khoản và các tài nguyên đã dày công cấu hình.
+
+---
+
+## 6. Kế hoạch dọn dẹp & Báo cáo chi phí cuối kỳ (Tuần 4)
+
+Vào Tuần 4, sau khi hoàn thành toàn bộ kịch bản kiểm thử và quay video demo đồ án, nhóm sẽ thực hiện:
+1. Chạy kịch bản tự động dọn dẹp (cleanup script) để xóa các bảng DynamoDB, hàm Lambda, API Gateway và secret đã tạo nhằm đưa tài khoản về trạng thái ban đầu.
+2. Xuất bảng đối soát chi phí chi tiết từ AWS Billing / Learner Lab, tổng hợp mức chi phí thực tế phát sinh (kỳ vọng $\le$ $5 USD).
+3. Đính kèm báo cáo chi phí vào tài liệu nộp cuối kỳ cho giảng viên hướng dẫn.

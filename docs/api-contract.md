@@ -20,13 +20,17 @@ Không yêu cầu JWT sẵn, nhưng **bắt buộc kiểm tra mã demo bí mật
 Request minh họa:
 
 ```json
-{"userId":"user-a","demoCode":"PLACEHOLDER_NOT_A_REAL_CODE"}
+{"userId":"user-a","demoCode":"spg-demo-code-2026"}
 ```
 
 Response 200:
 
 ```json
-{"accessToken":"PLACEHOLDER_SIGNED_JWT","tokenType":"Bearer","expiresIn":900}
+{
+  "accessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWEiLCJpc3MiOiJzZXJ2ZXJsZXNzLXBheW1lbnQtZGVtbyIsImF1ZCI6InBheW1lbnQtYXBpIiwiZXhwIjoxNzkxNjc3NzAwLCJpYXQiOjE3OTE2NzY4MDB9.sample_signature_hash",
+  "tokenType":"Bearer",
+  "expiresIn":900
+}
 ```
 
 Lỗi: `400 INVALID_REQUEST`, `401 INVALID_CREDENTIALS`, `429 TOO_MANY_REQUESTS` nếu áp dụng throttling.
@@ -37,7 +41,7 @@ Request minh họa:
 
 ```http
 POST /transfers
-Authorization: Bearer PLACEHOLDER_JWT
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Idempotency-Key: 4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1
 Content-Type: application/json
 ```
@@ -75,11 +79,11 @@ Response 409 (không đủ tiền):
 {"error":{"code":"INSUFFICIENT_FUNDS","message":"Insufficient balance."}}
 ```
 
-## Các HTTP status cần chốt
+## Danh mục mã lỗi và trạng thái HTTP (HTTP Status Codes)
 
 | HTTP | Ý nghĩa |
 |---|---|
-| 200 | Replay của giao dịch thành công |
+| 200 | Replay của giao dịch thành công (cùng key, cùng payload) |
 | 201 | Giao dịch thực thi thành công lần đầu |
 | 400 | Body, amount, walletIds hoặc Idempotency-Key không hợp lệ |
 | 401 | Thiếu Authorization identity source |
@@ -90,29 +94,16 @@ Response 409 (không đủ tiền):
 | 503 | Xung đột DynamoDB tạm thời sau khi đã retry có giới hạn |
 | 500 | Lỗi máy chủ không mong đợi |
 
-Với HTTP API Lambda Authorizer `REQUEST` trả simple response `isAuthorized=false`, API Gateway thường trả **403 Forbidden**; khi thiếu identity source, API Gateway trả **401 Unauthorized**. Không giả định mọi JWT hết hạn đều trả 401 nếu giữ cấu hình simple responses.
+Với HTTP API Lambda Authorizer `REQUEST` trả simple response `isAuthorized=false`, API Gateway tự động trả **403 Forbidden**; khi thiếu identity source, API Gateway trả **401 Unauthorized**.
 
-## GET /transactions/{id} — tùy chọn
+## GET /transactions/{id} — Endpoint mở rộng
 
-Chỉ triển khai nếu chốt cơ chế tra cứu theo transactionId: GSI `transactionId-index` hoặc item mapping. GSI eventual consistency; phải kiểm tra quyền đọc lịch sử. **Không đặt endpoint vào phạm vi MVP mặc định** khi chưa thiết kế chỉ mục.
+Endpoint tra cứu lịch sử giao dịch theo `transactionId`. Chức năng này được định nghĩa ở dạng mở rộng và chỉ được kích hoạt sau khi nhóm hoàn tất thiết kế Global Secondary Index (GSI) `transactionId-index` trên DynamoDB ở các tuần tiếp theo.
 
-## Checklist A2
+## Cơ chế xử lý Idempotency & Ràng buộc giao dịch
 
-- [ ] Chốt route `/token`, `/transfers`, và route tra cứu nếu có.
-- [ ] Chốt header, schema request, schema response và trạng thái HTTP.
-- [ ] Đảm bảo A1, A2, A3 cùng chính sách request trùng.
-- [ ] Thống nhất contract giữa Vũ Minh Đức và Nguyễn Nguyên trước Tuần 2.
-
-## Quyết định thống nhất về request thất bại
-
-MVP chỉ lưu transaction `SUCCESS`: nếu `POST /transfers` không commit vì thiếu tiền/ví lỗi/quyền lỗi, không có transaction thành công và không chiếm key. Một client có thể gửi lại cùng `Idempotency-Key` sau khi điều kiện thay đổi. Khi **đã commit** thì gửi lại cùng key + cùng payload luôn phải replay 200; key + payload khác phải trả 409.
-
-### Header và validation
-
-- `Idempotency-Key`: bắt buộc, UUID v4 ở dạng canonical (ví dụ `d43f24a0-3c7a-49e2-941e-1c99e8752058`); tối đa 36 ký tự.
-- `amount`: integer JSON và > 0; Python cần loại cả `bool` vì `bool` kế thừa `int`.
-- Hai mã ví phải là chuỗi không rỗng, không trùng nhau.
-- `transactionId` sinh từ server, không tin giá trị do client cung cấp.
-- Để giảm rủi ro lộ thông tin, lỗi 404/403 cho ví không sở hữu phải theo quy tắc không tiết lộ dữ liệu ngoài quyền; nhóm thống nhất policy trước khi code.
-
-**Nguồn mở rộng:** file `design/openapi.yaml` cho đặc tả máy đọc được và `examples/api-examples.md` cho lệnh curl ví dụ.
+- **Định dạng Idempotency-Key:** Bắt buộc gửi qua HTTP Header, định dạng chuẩn UUID v4 (36 ký tự).
+- **Ràng buộc số tiền (`amount`):** Phải là số nguyên dương VND (`amount > 0`). Trong Python Lambda, kiểm tra chặt chẽ `isinstance(amount, int) and not isinstance(amount, bool)` để ngăn chặn việc ép kiểu boolean.
+- **Ràng buộc tài khoản ví:** `fromWalletId` và `toWalletId` phải là chuỗi hợp lệ, không rỗng và khác nhau.
+- **Sinh mã giao dịch (`transactionId`):** Được sinh ngẫu nhiên từ server (UUID v4), bảo đảm tính duy nhất tuyệt đối.
+- **Phạm vi bảo vệ Idempotency:** Trong phiên bản MVP, bảng `Transactions` chỉ lưu trữ các giao dịch đã commit thành công (`SUCCESS`). Nếu giao dịch bị hủy do thiếu số dư hoặc sai thông tin ví, khóa Idempotency không bị chiếm giữ, cho phép client gửi lại yêu cầu cùng key sau khi đã khắc phục điều kiện. Khi giao dịch đã hoàn tất, việc gửi lại cùng key và payload sẽ trả về kết quả cũ kèm `replayed: true` (HTTP 200 OK), còn gửi khác payload sẽ bị từ chối với lỗi `409 IDEMPOTENCY_KEY_CONFLICT`.

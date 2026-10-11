@@ -1,72 +1,118 @@
-# KẾ HOẠCH & KỊCH BẢN KIỂM THỬ (TEST PLAN & SCENARIOS)
+# KẾ HOẠCH & BỘ KỊCH BẢN KIỂM THỬ (TEST PLAN & TEST SCENARIOS)
 
 > **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Người phụ trách:** Vũ Minh Đức  
 > **Phối hợp thực hiện:** Nguyễn Nguyên  
-> **Trạng thái:** Kế hoạch kiểm thử hoàn chỉnh cho các tuần 2–4  
+> **Môi trường thực thi:** AWS Academy Learner Lab (`us-east-1`)  
+> **Phiên bản:** 1.0 (Thiết kế hoàn chỉnh – Sẵn sàng thực thi từ Tuần 2)  
 
-**Dữ liệu khởi tạo mẫu:** `user-a` sở hữu `W001` = 100.000 VND; `user-b` sở hữu `W002` = 50.000 VND; status cả hai ACTIVE.
+---
 
-| ID | Kiểm thử | Kết quả kỳ vọng |
-|---|---|---|
-| TC-01 | Token hợp lệ; W001 → W002, 30.000 với K1 | 201 SUCCESS; W001=70.000; W002=80.000 |
-| TC-02 | Gửi lại đúng payload và K1 | 200 replayed=true; số dư không đổi; transactionId cũ |
-| TC-03 | K1 nhưng amount=40.000 | 409 IDEMPOTENCY_KEY_CONFLICT; số dư không đổi |
-| TC-04 | Thiếu Authorization | 401; không chuyển tiền |
-| TC-05 | Token hết hạn/chữ ký sai | 403 (simple authorizer deny); không chuyển tiền |
-| TC-06 | user-b cố chuyển từ W001 | 403; không chuyển tiền |
-| TC-07 | Gửi 200.000 từ W001 còn 100.000 | 409 INSUFFICIENT_FUNDS; không trừ |
-| TC-08 | Chuyển từ W001 đến chính W001 | 400 INVALID_WALLET |
-| TC-09 | Chuyển đến W999 không tồn tại | 404; ví nguồn không bị trừ |
-| TC-10 | amount=0,-1,1.5,"10",true | 400 INVALID_AMOUNT |
-| TC-11 | Hai request khác key đồng thời, mỗi request 80.000 từ ví có 100.000 | Tối đa 1 thành công; không âm số dư |
-| TC-12 | Gửi song song 10 request cùng key | Chỉ 1 SUCCESS và 1 lần debit/credit |
-| TC-13 | Gửi lại K1 sau hơn 10 phút | Không trừ thêm; replay nhờ record còn tồn tại |
-| TC-14 | Thiếu Idempotency-Key | 400; không cập nhật ví |
-| TC-15 | JWT sai audience/issuer | 403 (simple authorizer deny) |
-| TC-16 | DynamoDB transaction có 1 thao tác thất bại | Toàn bộ rollback; không cập nhật từng phần |
+## 1. Mục tiêu và Phạm vi kiểm thử
 
-## Phương pháp chạy kiểm thử trong Tuần 2–4
+Tài liệu này xác định kế hoạch và các kịch bản kiểm thử toàn diện cho hệ thống cổng thanh toán giả lập không máy chủ, nhằm bảo đảm:
+1. **Tính nguyên tử tài chính (ACID):** Số tiền chuyển giữa hai ví được thực hiện đồng thời, không xảy ra tình trạng trừ tiền một phía hay số dư âm khi gặp lỗi hoặc hủy giao dịch.
+2. **Cơ chế chống lặp (Idempotency):** Xử lý an toàn khi client gửi lại request (do retry mạng hoặc thao tác bấm nhiều lần), bảo đảm không trừ tiền hai lần và phản hồi đúng kết quả giao dịch ban đầu.
+3. **Bảo mật và kiểm soát truy cập:** Xác thực token JWT qua Lambda Authorizer, kiểm tra chặt chẽ quyền sở hữu ví của người gửi (`sub == ownerId`).
+4. **Xử lý tranh chấp đồng thời (Concurrency):** Đảm bảo tính nhất quán dữ liệu khi có nhiều yêu cầu chuyển tiền từ cùng một ví xảy ra trong cùng một thời điểm.
 
-1. Thiết lập dữ liệu ví mẫu và bảo đảm biết **số dư ban đầu** trước mỗi test.
-2. Dùng Postman hoặc script requests/curl với JWT và Idempotency-Key.
-3. Ghi status HTTP, `transactionId`, response body.
-4. Đọc lại `Wallets` và `Transactions` sau mỗi test, ghi đối chiếu số dư và số lượng giao dịch.
-5. Kiểm tra CloudWatch log (không lộ JWT/signing key).
-6. Lưu ảnh minh chứng và thời gian thực hiện. Nếu test cần concurrency, dùng script gửi song song, không chỉ click Postman thủ công.
+---
 
-## Lịch kiểm thử đề xuất
+## 2. Dữ liệu khởi tạo mẫu (Test Fixtures & Seed Data)
 
-- Tuần 2: TC-01, TC-04...TC-10, TC-14, TC-15 (chức năng lõi + auth).
-- Tuần 3: TC-02, TC-03, TC-11...TC-13, TC-16 (concurrency/idempotency).
-- Tuần 4: chạy lại toàn bộ và quay demo.
+Trước khi thực hiện mỗi chu kỳ kiểm thử, dữ liệu khởi tạo trên bảng DynamoDB `Wallets` được thiết lập như sau:
 
-## Bảng ghi kết quả thực tế (sau khi code chạy thật)
+| Mã ví (`walletId`) | Chủ sở hữu (`ownerId`) | Số dư (`balance`) | Loại tiền (`currency`) | Trạng thái (`status`) | Mục đích thử nghiệm |
+|---|---|---:|:---:|:---:|---|
+| `W001` | `user-a` | 100.000 | `VND` | `ACTIVE` | Ví nguồn chính của User A |
+| `W002` | `user-b` | 50.000 | `VND` | `ACTIVE` | Ví đích nhận tiền của User B |
+| `W003` | `user-b` | 20.000 | `VND` | `SUSPENDED` | Ví đích bị khóa (kiểm tra điều kiện) |
+| `W004` | `user-a` | 10.000 | `USD` | `ACTIVE` | Ví ngoại tệ (kiểm tra sai loại tiền) |
 
-| Test | Trạng thái hiện tại | HTTP thực tế | Evidence |
-|---|---|---|---|
-| TC-01 | NOT RUN | Chưa có | Chưa có |
-| TC-02 | NOT RUN | Chưa có | Chưa có |
+---
 
-**Tuyệt đối không đổi `NOT RUN` thành PASS nếu chưa thực hiện test thật trên AWS Learner Lab.**
+## 3. Ma trận kịch bản kiểm thử chi tiết (Test Scenarios Matrix)
 
-## Quy tắc nghiệm thu tự động
+### Nhóm 1: Kiểm thử chức năng cốt lõi (Happy Path)
 
-- TC-01: `balance(W001) + balance(W002) == 150000` và chỉ **một** bản ghi Transactions có key K1.
-- TC-02/12/13: `transactionId` trả về bằng TC-01, không có khoản debit/credit tiếp theo.
-- TC-03: không thay đổi dữ liệu dù request amount khác.
-- TC-11: hai key khác nhau tranh chấp, nếu mỗi request 80.000 thì **không quá một** request được commit với nguồn 100.000.
-- TC-16: mô phỏng điều kiện cập nhật ví đích không thỏa mãn, không có item SUCCESS và không có số dư cập nhật.
-- Thêm TC-17: thử lại cùng key của **request chưa commit** sau khi reset/chuẩn bị lại số dư và trạng thái ví: được phép thực hiện vì chưa có record SUCCESS (theo MVP).
-- Thêm TC-18: nếu role không có quyền TransactWriteItems, việc list table thành công không có nghĩa có quyền ghi; cần ghi nhận AccessDenied trong kiểm thử thực tế.
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Kiểm tra cơ sở dữ liệu DynamoDB |
+|:---:|---|---|:---:|---|
+| **TC-01** | Chuyển tiền thành công giữa 2 ví hợp lệ | JWT `user-a`, `W001` $\rightarrow$ `W002`, 30.000 VND, `Idempotency-Key: K1` | `201 Created`<br>`status: SUCCESS`<br>`replayed: false` | `W001.balance` = 70.000<br>`W002.balance` = 80.000<br>Bảng `Transactions` có 1 bản ghi `K1` |
+| **TC-02** | Gửi lại cùng request và key đã thành công (Idempotent Replay) | Giữ nguyên toàn bộ payload, header và `Idempotency-Key: K1` như TC-01 | `200 OK`<br>`status: SUCCESS`<br>`replayed: true` | Số dư `W001` vẫn là 70.000<br>Số dư `W002` vẫn là 80.000<br>Không sinh bản ghi mới, không trừ thêm tiền |
 
-## Mẫu bảng kết quả để điền sau khi có AWS chạy thật
+### Nhóm 2: Kiểm thử cơ chế Chống lặp (Idempotency Control)
 
-| TC | Expected HTTP | Actual HTTP | Wallets before / after | Transactions count | Evidence | Result |
-|---|---|---|---|---|---|---|
-| TC-01 | 201 | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| TC-02 | 200 | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| TC-11 | 201 / lỗi phù hợp | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Kiểm tra cơ sở dữ liệu DynamoDB |
+|:---:|---|---|:---:|---|
+| **TC-03** | Tái sử dụng key cũ nhưng thay đổi nội dung (Payload Conflict) | JWT `user-a`, cùng `Idempotency-Key: K1`, đổi `amount: 40000` | `409 Conflict`<br>`code: IDEMPOTENCY_KEY_CONFLICT` | Dữ liệu ví và giao dịch không thay đổi |
+| **TC-12** | Gửi song song 10 request cùng key (Burst Replay) | 10 luồng đồng thời gửi cùng payload và `Idempotency-Key: K2` | Đúng 1 request nhận `201 Created`, 9 request còn lại nhận `200 OK` (replayed) | Chỉ thực hiện trừ tiền 1 lần duy nhất; bảng `Transactions` có đúng 1 record `K2` |
+| **TC-13** | Gửi lại key cũ sau khoảng thời gian dài (> 10 phút) | Gửi lại `Idempotency-Key: K1` sau 15 phút | `200 OK`<br>`replayed: true` | Không bị trừ tiền thêm; chứng minh không phụ thuộc giới hạn 10 phút của DynamoDB ClientRequestToken |
+| **TC-17** | Thử lại cùng key của request từng thất bại trước đó | Gửi request lỗi (ví dụ thiếu tiền) với `K3`, sau đó nạp tiền ví và gửi lại đúng `K3` | Lần 1: `409 INSUFFICIENT_FUNDS`<br>Lần 2: `201 Created` | Request thất bại không chiếm key; cho phép client hoàn tất giao dịch sau khi thỏa điều kiện |
 
-> Khi chạy thật, thực hiện các test độc lập với seed/reset có kiểm soát để không làm test trước ảnh hưởng test sau.
+### Nhóm 3: Kiểm thử Xác thực & Phân quyền (Authentication & Authorization)
+
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Ghi chú kỹ thuật |
+|:---:|---|---|:---:|---|
+| **TC-04** | Yêu cầu không có header `Authorization` | Không gửi header `Authorization` | `401 Unauthorized` | API Gateway chặn trực tiếp tại tầng ingress |
+| **TC-05** | Token JWT hết hạn hoặc chữ ký HMAC bị sửa đổi | Gửi JWT hết hạn (`exp` quá khứ) hoặc chữ ký không khớp | `403 Forbidden` | Lambda Authorizer trả về `isAuthorized: false` |
+| **TC-06** | Người dùng cố chuyển tiền từ ví của người khác | JWT `user-b`, yêu cầu chuyển tiền từ `W001` (chủ sở hữu là `user-a`) | `403 Forbidden` | Transfer Lambda kiểm tra `sub != ownerId` và từ chối |
+| **TC-14** | Yêu cầu thiếu header `Idempotency-Key` | Header hợp lệ nhưng không có `Idempotency-Key` | `400 Bad Request`<br>`code: MISSING_IDEMPOTENCY_KEY` | Dữ liệu ví không thay đổi |
+| **TC-15** | Token JWT sai trường `iss` (Issuer) hoặc `aud` (Audience) | JWT ký hợp lệ nhưng `iss: untrusted-issuer` | `403 Forbidden` | Lambda Authorizer kiểm tra claims và từ chối |
+
+### Nhóm 4: Kiểm thử Quy tắc nghiệp vụ (Business Rules Validation)
+
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Ghi chú kỹ thuật |
+|:---:|---|---|:---:|---|
+| **TC-07** | Số dư ví nguồn không đủ thực hiện giao dịch | `W001` có 100.000 VND, yêu cầu chuyển 200.000 VND | `409 Conflict`<br>`code: INSUFFICIENT_FUNDS` | Điều kiện `balance >= amount` bị vi phạm |
+| **TC-08** | Ví nguồn và ví đích trùng nhau | `fromWalletId: W001`, `toWalletId: W001` | `400 Bad Request`<br>`code: INVALID_WALLET` | Chặn từ tầng kiểm tra dữ liệu đầu vào |
+| **TC-09** | Chuyển tiền tới ví đích không tồn tại | `toWalletId: W999` (không có trong CSDL) | `404 Not Found`<br>`code: WALLET_NOT_FOUND` | Ví nguồn không bị trừ tiền |
+| **TC-10** | Số tiền giao dịch không hợp lệ | `amount` nhận giá trị: `0`, `-50000`, `15.5`, `"30000"`, `true` | `400 Bad Request`<br>`code: INVALID_AMOUNT` | Bắt buộc số nguyên dương VND |
+| **TC-19** | Chuyển tiền tới ví đích đang bị khóa (`SUSPENDED`) | `toWalletId: W003` (`status: SUSPENDED`) | `409 Conflict`<br>`code: WALLET_INACTIVE` | Điều kiện `status == ACTIVE` bị vi phạm |
+
+### Nhóm 5: Kiểm thử Tính nguyên tử & Tranh chấp đồng thời (Atomicity & Concurrency)
+
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Kiểm tra bảo đảm tính nhất quán |
+|:---:|---|---|:---:|---|
+| **TC-11** | Hai yêu cầu khác key rút tiền đồng thời vượt quá số dư | `W001` có 100.000 VND. Gửi đồng thời Request 1 (80.000) và Request 2 (80.000) với 2 key khác nhau | Chính xác 1 request thành công (`201`), 1 request thất bại (`409 INSUFFICIENT_FUNDS`) | Số dư ví còn 20.000 VND; tuyệt đối không xảy ra số dư âm (-60.000 VND) |
+| **TC-16** | Mô phỏng lỗi một nhánh trong `TransactWriteItems` | Ví nguồn đủ tiền nhưng ví đích vi phạm điều kiện | Toàn bộ transaction bị rollback, trả về mã lỗi thích hợp | Ví nguồn không bị trừ tiền; không xảy ra lỗi cập nhật một phần |
+| **TC-18** | Đọc nhất quán sau khi hoàn tất giao dịch | Đọc trạng thái ví ngay sau khi nhận phản hồi `201` | Dữ liệu số dư phản ánh chính xác giá trị mới | Đảm bảo tính nhất quán tức thì (Strong Consistency) |
+
+---
+
+## 4. Quy trình & Kế hoạch thực thi kiểm thử
+
+```mermaid
+flowchart TD
+    Init["1. Khởi tạo dữ liệu mẫu (Seed Data)"] --> RunTest["2. Gửi yêu cầu kiểm thử (Postman / Script Python)"]
+    RunTest --> CheckHTTP["3. Xác nhận mã phản hồi HTTP & Response Body"]
+    CheckHTTP --> CheckDB["4. Truy vấn DynamoDB (Đối soát số dư & bản ghi Transactions)"]
+    CheckDB --> CheckLogs["5. Kiểm tra CloudWatch Logs (Thời gian xử lý, mã lỗi, bảo mật)"]
+    CheckLogs --> Record["6. Ghi nhật ký kết quả & Lưu ảnh minh chứng (evidence/)"]
+```
+
+### Lộ trình thực hiện qua các tuần:
+- **Tuần 2 (Kiểm thử chức năng lõi & Đơn vị):** Thực hiện các ca kiểm thử cơ bản sau khi triển khai Lambda và DynamoDB (`TC-01`, `TC-04` đến `TC-10`, `TC-14`, `TC-15`).
+- **Tuần 3 (Kiểm thử tích hợp & Chống lặp):** Thực hiện kiểm thử tích hợp toàn diện luồng API Gateway, Authorizer, Idempotency và Concurrency (`TC-02`, `TC-03`, `TC-11`, `TC-12`, `TC-13`, `TC-16`, `TC-17`, `TC-19`).
+- **Tuần 4 (Nghiệm thu tổng thể & Demo):** Tái thực thi toàn bộ 19 kịch bản kiểm thử, lưu trữ ảnh chụp minh chứng và quay video demo hệ thống (thời lượng $\le$ 10 phút).
+
+---
+
+## 5. Biểu mẫu ghi nhận kết quả kiểm thử (Test Execution Log)
+
+Bảng đối soát được sử dụng để ghi nhận kết quả thực tế trong các đợt chạy trên AWS Learner Lab:
+
+| Mã TC | Tên kịch bản | HTTP kỳ vọng | HTTP thực tế | Trạng thái số dư ví | Kết quả | Tệp minh chứng |
+|:---:|---|:---:|:---:|---|:---:|---|
+| **TC-01** | Chuyển tiền thành công | `201` | _(Ghi nhận Tuần 2)_ | `W001 -30k`, `W002 +30k` | _Đang chờ_ | `evidence/week02/...` |
+| **TC-02** | Gửi lại cùng key (Replay) | `200` | _(Ghi nhận Tuần 3)_ | Không đổi số dư | _Đang chờ_ | `evidence/week03/...` |
+| **TC-03** | Trùng key khác nội dung | `409` | _(Ghi nhận Tuần 3)_ | Không đổi số dư | _Đang chờ_ | `evidence/week03/...` |
+| **TC-04** | Thiếu Authorization | `401` | _(Ghi nhận Tuần 3)_ | Không tác động | _Đang chờ_ | `evidence/week03/...` |
+| **TC-05** | Token JWT hết hạn | `403` | _(Ghi nhận Tuần 3)_ | Không tác động | _Đang chờ_ | `evidence/week03/...` |
+| **TC-06** | Chuyển tiền ví người khác | `403` | _(Ghi nhận Tuần 2)_ | Không tác động | _Đang chờ_ | `evidence/week02/...` |
+| **TC-07** | Không đủ số dư | `409` | _(Ghi nhận Tuần 2)_ | Không đổi số dư | _Đang chờ_ | `evidence/week02/...` |
+| **TC-08** | Chuyển cho chính mình | `400` | _(Ghi nhận Tuần 2)_ | Không tác động | _Đang chờ_ | `evidence/week02/...` |
+| **TC-09** | Ví đích không tồn tại | `404` | _(Ghi nhận Tuần 2)_ | Không tác động | _Đang chờ_ | `evidence/week02/...` |
+| **TC-10** | Số tiền không hợp lệ | `400` | _(Ghi nhận Tuần 2)_ | Không tác động | _Đang chờ_ | `evidence/week02/...` |
+| **TC-11** | Hai giao dịch tranh chấp | `201 & 409` | _(Ghi nhận Tuần 3)_ | Chỉ trừ 1 lần, không âm | _Đang chờ_ | `evidence/week03/...` |
+| **TC-12** | 10 request song song cùng key | `1x 201, 9x 200` | _(Ghi nhận Tuần 3)_ | Chỉ trừ 1 lần duy nhất | _Đang chờ_ | `evidence/week03/...` |

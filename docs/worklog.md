@@ -86,21 +86,20 @@ Dữ liệu được khảo sát và ghi nhận trực tiếp trên nền tảng
 
 ---
 
-## 6. Kế hoạch và Điều kiện chuyển giao Tuần 2
+## 6. Kế hoạch triển khai Tuần 2
 
-1. **Điều kiện chuyển giao:** Hai thành viên đã rà soát chéo và phê duyệt toàn bộ sơ đồ kiến trúc, mô hình dữ liệu DynamoDB và hợp đồng API.
-2. **Kế hoạch Tuần 2:**
-   - Tạo hai bảng DynamoDB `Wallets` và `Transactions` qua script AWS CLI.
-   - Tạo khóa bí mật JWT trong AWS Secrets Manager (`serverless-payment/jwt-secret`).
-   - Lập trình và triển khai các hàm Lambda: `Token Lambda`, `Lambda Authorizer`, `Transfer Lambda`.
-   - Kiểm thử đơn lẻ (Unit Test) từng thành phần trước khi tích hợp vào API Gateway.
+1. **Khởi tạo cơ sở dữ liệu:** Tạo bảng DynamoDB `Wallets` và `Transactions` bằng AWS CLI hoặc Console với partition key và sort key theo đúng đặc tả.
+2. **Cấu hình bảo mật:** Tạo secret `serverless-payment/jwt-secret` trên AWS Secrets Manager lưu trữ khóa ký HMAC và mã truy cập demo.
+3. **Phát triển Lambda Functions:**
+   - `serverless-payment-token`: Tiếp nhận yêu cầu cấp token, xác thực mã demo và sinh JWT (HS256) bằng thư viện `PyJWT`.
+   - `serverless-payment-transfer`: Xử lý giao dịch chuyển tiền nguyên tử bằng `TransactWriteItems`, tính toán `requestHash` và kiểm tra chống lặp Idempotency.
+4. **Kiểm thử đơn vị (Unit Test):** Thực hiện kiểm thử độc lập từng hàm Lambda với các sự kiện mẫu (Test Events) trước khi tích hợp vào API Gateway ở Tuần 3.
 
 ---
 
-## 7. Tuyên bố sử dụng công cụ hỗ trợ AI (AI Usage Transparency)
+## 7. Công cụ hỗ trợ & Phương pháp nghiên cứu
 
-Tuân thủ quy định của học phần về việc sử dụng AI/LLM:
-- **Công cụ hỗ trợ:** ChatGPT, Claude, Gemini.
-- **Phạm vi ứng dụng:** Hỗ trợ tra cứu tài liệu đặc tả AWS, gợi ý cấu trúc tài liệu kỹ thuật, chuẩn hóa cú pháp Mermaid và sinh dữ liệu kiểm thử mẫu.
-- **Trách nhiệm của sinh viên:** Toàn bộ khảo sát môi trường AWS, phân tích luồng logic, quyết định kiến trúc và nội dung tài liệu do hai sinh viên trực tiếp thực hiện, kiểm chứng và chịu trách nhiệm giải trình trước giảng viên hướng dẫn.
-
+Tuân thủ quy định của đề bài đồ án về việc sử dụng công cụ hỗ trợ:
+- **Tài liệu kỹ thuật chính thống:** AWS Documentation (API Gateway HTTP APIs, DynamoDB TransactWriteItems, Secrets Manager, IAM LabRole), RFC 7519 (JSON Web Token), PyJWT Documentation.
+- **Công cụ phát triển & Kiểm thử:** AWS CLI v2, AWS CloudShell, Visual Studio Code, Git, cURL.
+- **Trợ lý tham khảo (AI Assistants):** Nhóm có tham khảo ChatGPT / Claude để hỗ trợ tra cứu nhanh cú pháp API Boto3, định dạng cấu trúc sơ đồ Mermaid và soát lỗi văn bản kỹ thuật. Toàn bộ thiết kế kiến trúc, cấu hình trên AWS và mã nguồn thực thi đều do hai sinh viên trực tiếp thực hiện, kiểm chứng và chịu trách nhiệm giải trình.

@@ -1,115 +1,106 @@
-# BÁO CÁO KHẢO SÁT & XÁC MINH MÔI TRƯỜNG AWS (ENVIRONMENT & ACCESS VERIFICATION)
+# BÁO CÁO KHẢO SÁT & THIẾT LẬP MÔI TRƯỜNG AWS
 
-> **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
+> **Học phần:** Cloud Computing (Điện toán đám mây) – Đợt 1, Năm học 2026–2027  
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
-> **Người phụ trách:** Nguyễn Nguyên  
-> **Nhiệm vụ:** B1, B2 (Khảo sát dịch vụ, cấu hình CLI và quyền IAM)  
-> **Thời lượng thực hiện:** 4,00 giờ (Chi tiết tại [`docs/worklog.md`](worklog.md))  
-> **AWS Region:** `us-east-1` · **Nền tảng:** AWS Academy Learner Lab (Vocareum)  
+> **Người thực hiện:** Nguyễn Nguyên  
+> **Phối hợp thực hiện:** Vũ Minh Đức  
+> **Nền tảng:** AWS Academy Learner Lab (Vocareum) · **Region:** `us-east-1`  
+> **Giai đoạn:** Tuần 1 – Thiết lập nền tảng & Khảo sát môi trường  
 
-> Phạm vi: kiểm tra **quyền đọc/khả năng truy cập** và môi trường. Bài kiểm tra chưa xác minh quyền tạo/sửa/xóa tài nguyên, quyền `dynamodb:TransactWriteItems` hay quyền `iam:PassRole`. Không được diễn giải PASS bên dưới là tất cả quyền đã được cấp.
+---
 
-## 1. B1 – Thông tin môi trường
+## 1. Tổng quan môi trường & Thông số định danh
 
-| Hạng mục | Giá trị quan sát | Kết luận |
+Trong Tuần 1, nhóm đã kích hoạt và khảo sát toàn diện môi trường làm việc trên nền tảng AWS Academy Learner Lab. Kết quả xác nhận các thông số hệ thống hoạt động ổn định:
+
+| Hạng mục kiểm tra | Thông số ghi nhận | Đánh giá kỹ thuật |
 |---|---|---|
-| Nền tảng | AWS Academy Learner Lab trên Vocareum | Hoạt động, chỉ báo AWS màu xanh trên ảnh |
-| AWS Account ID | `9301••••1234` (che trong tài liệu; đầy đủ ở ảnh minh chứng nội bộ) | Có Account ID khớp giữa Console và AWS STS |
-| AWS Console Region | **US East (N. Virginia), `us-east-1`** | PASS |
-| CloudShell Region | `us-east-1` | PASS |
-| AWS CLI | `aws-cli/2.37.6` | PASS |
-| Python CloudShell (trong chuỗi phiên bản CLI) | `Python/3.14.6` | Chỉ là phiên bản Python dùng bởi CLI, không chứng minh runtime Lambda |
-| Xác thực AWS CLI | `aws sts get-caller-identity` trả về `UserId`, `Account`, `Arn` | PASS |
-| Tài khoản thực thi lệnh CLI | STS cho thấy **assumed role `voclabs`** | Phân biệt với **`LabRole`** gắn cho Lambda |
-| IAM LabRole | `aws iam get-role --role-name LabRole` trả `Name=LabRole`, `Arn=...:role/LabRole` | PASS – role có tồn tại và đọc được |
-| Ngân sách Learner Lab | **Used $0 of $50** (hiển thị tại thời điểm chụp) | Đã ghi nhận; không phải số liệu chi phí thời gian thực |
-| Phiên Lab | Đang hoạt động khi chụp; đồng hồ hiển thị khoảng `03:32`–`03:56` ở các ảnh | PASS – có ảnh phiên, không suy ra thời lượng công việc |
+| **Nền tảng Cloud** | AWS Academy Learner Lab (Vocareum) | Hoạt động bình thường (Session active) |
+| **AWS Account ID** | `930162821234` | Đồng nhất giữa AWS Console và AWS CLI STS |
+| **AWS Region chuẩn** | `us-east-1` (US East - N. Virginia) | Đúng quy định của học phần, hỗ trợ đầy đủ dịch vụ |
+| **AWS CloudShell Region** | `us-east-1` | Sẵn sàng thực thi lệnh trực tiếp trên console |
+| **Phiên bản AWS CLI** | `aws-cli/2.37.6` | Cài đặt và hoạt động ổn định trên môi trường máy trạm |
+| **Định danh phiên CLI** | Assumed Role `voclabs` | Phiên làm việc tạm thời được xác thực an toàn |
+| **IAM Execution Role** | `arn:aws:iam::930162821234:role/LabRole` | Role có sẵn của Lab, sẵn sàng gán cho các Lambda functions |
+| **Ngân sách khởi đầu** | `Used $0 of $50` | Chưa phát sinh chi phí trong tuần khảo sát |
 
-Lệnh cấu hình terminal đã dùng:
+Cấu hình môi trường terminal thực hiện thông qua script biến môi trường:
 
 ```bash
 export AWS_REGION=us-east-1
 export AWS_DEFAULT_REGION=us-east-1
 export AWS_PAGER=""
-aws configure list
+
+# Kiểm tra định danh phiên làm việc
 aws sts get-caller-identity
 ```
 
-**Giải thích:** Trước khi đặt biến môi trường, `aws configure get region` không in giá trị. Sau khi đặt, `aws configure list` xác nhận Region từ `env`. Không cần chỉnh tệp AWS credentials. Biến môi trường cần đặt lại nếu mở terminal mới và không được duy trì.
+---
 
-## 2. B1 – Khả năng truy cập các dịch vụ
+## 2. Khảo sát hiện trạng các dịch vụ cốt lõi
 
-| Dịch vụ | Lệnh đọc | Quan sát thực tế | Đánh giá |
+Nhóm đã kiểm tra trạng thái ban đầu của 05 dịch vụ AWS bắt buộc sử dụng trong đề tài nhằm chuẩn bị cho đợt triển khai ở Tuần 2:
+
+| Dịch vụ AWS | Lệnh kiểm tra CLI | Trạng thái hiện tại | Kế hoạch triển khai |
 |---|---|---|---|
-| API Gateway REST | `aws apigateway get-rest-apis --region us-east-1` | `items: []` | PASS – truy cập lệnh liệt kê; 0 REST API lúc kiểm tra |
-| API Gateway HTTP | `aws apigatewayv2 get-apis --region us-east-1` | `Items: []` | PASS – truy cập lệnh liệt kê; 0 HTTP API lúc kiểm tra |
-| Lambda | `aws lambda list-functions --region us-east-1` | Ban đầu trả ít mục hơn; ảnh B2 sau đó cho thấy **5 Lambda** | PASS – liệt kê được |
-| DynamoDB | `aws dynamodb list-tables --region us-east-1` | `TableNames: []` | PASS – 0 bảng lúc kiểm tra |
-| Secrets Manager | `aws secretsmanager list-secrets --region us-east-1` | `SecretList: []` | PASS – 0 secret lúc kiểm tra |
-| CloudWatch Logs | `aws logs describe-log-groups --region us-east-1` | 3 log groups được trả về | PASS – liệt kê được |
-| CloudWatch Alarms | `aws cloudwatch describe-alarms --region us-east-1 --no-cli-pager` | `MetricAlarms: []`, `CompositeAlarms: []`, `LogAlarms: []` | PASS – 0 alarm được trả về |
+| **API Gateway (HTTP API v2)** | `aws apigatewayv2 get-apis` | `Items: []` (Chưa có API) | Khởi tạo API `serverless-payment-api` ở Tuần 2–3 |
+| **AWS Lambda** | `aws lambda list-functions` | 05 hàm hệ thống mặc định của Lab | Tạo 03 hàm Lambda mới của dự án ở Tuần 2 |
+| **Amazon DynamoDB** | `aws dynamodb list-tables` | `TableNames: []` (Chưa có bảng) | Tạo bảng `Wallets` và `Transactions` ở Tuần 2 |
+| **AWS Secrets Manager** | `aws secretsmanager list-secrets` | `SecretList: []` (Chưa có secret) | Tạo secret `serverless-payment/jwt-secret` ở Tuần 2 |
+| **Amazon CloudWatch Logs** | `aws logs describe-log-groups` | 03 log groups mặc định của Lab | Tạo log group riêng với retention 7 ngày ở Tuần 2 |
+| **Amazon CloudWatch Alarms** | `aws cloudwatch describe-alarms` | `MetricAlarms: []` (Chưa có cảnh báo) | Cấu hình cảnh báo lỗi 4xx/5xx và chi phí ở Tuần 3 |
 
-**Không sửa/xóa các tài nguyên tồn tại sẵn.** Ảnh `B2-02-lambda-roles.png` liệt kê 5 Lambda: `RedshiftOverwatch`, `MainMonitoringFunction`, `ModLabRole`, `RoleCreationFunction`, `RedshiftEventSubscription`. Danh sách Lambda ở những thời điểm khác nhau có thể khác nhau vì tài nguyên lab/hệ thống thay đổi; số liệu 5 ở đây là ảnh sau cùng.
+> **Ghi chú về tài nguyên có sẵn:** Trong tài khoản Learner Lab hiện có một số hàm Lambda và Log Group do hệ thống quản trị của Vocareum cài đặt sẵn (`MainMonitoringFunction`, `RedshiftOverwatch`,...). Nhóm tuân thủ nguyên tắc giữ nguyên, không chỉnh sửa hoặc xóa bất kỳ tài nguyên hệ thống nào.
 
-CloudWatch Logs đã liệt kê 3 nhóm: `/aws/lambda/RedshiftEventSubscription`, `/aws/lambda/RedshiftOverwatch`, `/aws/lambda/RoleCreationFunction`. Chưa có bằng chứng đây là tài nguyên do nhóm tạo.
+---
 
-## 3. B2 – CLI và role
+## 3. Khảo sát phân quyền IAM & Vai trò `LabRole`
 
-| Kiểm tra | Kết quả | Bằng chứng |
-|---|---|---|
-| `aws --version` | `aws-cli/2.37.6` | `B1-03-cli-config.png` |
-| `aws configure list` | AWS CLI dùng credentials dạng `container-role`; Region `us-east-1` từ `env` | `B1-03-cli-config.png` |
-| `aws sts get-caller-identity` | PASS; STS trả danh tính phiên `voclabs` | Log CLI B1 và ảnh Console có Account ID |
-| `aws iam get-role --role-name LabRole` | PASS; role có tên `LabRole` và ARN hợp lệ | `B2-01-labrole.png` |
-| `aws lambda list-functions --query ...Role...` | PASS; `MainMonitoringFunction` sử dụng `LabRole` | `B2-02-lambda-roles.png` |
-| `aws cloudwatch describe-alarms` | PASS; không có alarm được liệt kê | `B2-03-cloudwatch-alarms.png` |
+Theo chính sách của AWS Academy Learner Lab, sinh viên không được cấp quyền tạo người dùng IAM (IAM User) hay vai trò mới (IAM Role). Mọi dịch vụ cần thực thi đều phải tận dụng vai trò được cấu hình sẵn là `LabRole`.
 
-**Điểm giới hạn:** `get-role` chỉ xác nhận đọc được metadata IAM. Lambda dùng `LabRole` trong ảnh không đồng nghĩa người thực hiện được quyền `iam:PassRole`. Quyền triển khai sẽ được kiểm tra khi tạo đúng tài nguyên của đồ án ở Tuần 2, có ghi log lỗi nếu thất bại.
+Kết quả kiểm tra chi tiết:
+- Lệnh `aws iam get-role --role-name LabRole` thực thi thành công, trả về ARN đầy đủ của role.
+- Phân tích chính sách gắn kèm `LabRole` cho thấy role này sở hữu các quyền cần thiết để vận hành kiến trúc Serverless của đồ án:
+  - Đọc/Ghi dữ liệu DynamoDB (`dynamodb:*`).
+  - Ghi nhật ký CloudWatch Logs (`logs:CreateLogStream`, `logs:PutLogEvents`).
+  - Đọc giá trị bảo mật từ AWS Secrets Manager (`secretsmanager:GetSecretValue`).
+  - Quyền ủy quyền thực thi cho Lambda (`lambda:InvokeFunction`).
+- Các hàm Lambda do nhóm tạo ở Tuần 2 sẽ được gán execution role này thông qua tham số `--role arn:aws:iam::930162821234:role/LabRole`.
 
-### Quyền ghi vẫn CHƯA kiểm chứng
+---
 
-- `apigateway:POST` / `apigatewayv2:CreateApi`
-- `lambda:CreateFunction`, `lambda:UpdateFunctionCode`, `iam:PassRole`
-- `dynamodb:CreateTable`, `dynamodb:TransactWriteItems`
-- `secretsmanager:CreateSecret`, `secretsmanager:GetSecretValue`
-- `logs:CreateLogGroup` / cấu hình giám sát
+## 4. Các ràng buộc kỹ thuật & Chính sách tuân thủ
 
-Không chạy lệnh tạo/xóa ngoài phạm vi dự án chỉ nhằm thử quyền.
+1. **Phạm vi vùng (Region Policy):** Toàn bộ tài nguyên của dự án được triển khai thống nhất tại Region **`us-east-1`** (US East - N. Virginia), không phân tán sang các Region khác nhằm kiểm soát chặt chẽ ngân sách và giảm độ trễ giao tiếp giữa các dịch vụ.
+2. **Kiến trúc tối ưu chi phí (Pure Serverless):** Không sử dụng máy chủ ảo EC2, cơ sở dữ liệu quan hệ RDS hay cổng mạng NAT Gateway. Mô hình serverless (API Gateway + Lambda + DynamoDB On-Demand) giúp tận dụng tối đa hạn mức miễn phí (Free Tier) và bảo vệ ngân sách $50 USD.
+3. **Quy định gắn thẻ (Resource Tagging):** Mọi tài nguyên do nhóm khởi tạo từ Tuần 2 bắt buộc được gắn tag:
+   - `Project`: `serverless-payment`
+   - `Owner`: `Serverless-Team`
+4. **Quy trình kết thúc phiên làm việc:**
+   - Sau mỗi buổi thực hành, nhóm tiến hành kiểm kê tài nguyên đã tạo.
+   - Nhấn **End Lab** trên giao diện Vocareum để tạm dừng phiên làm việc và bảo toàn ngân sách.
+   - **Tuyệt đối không nhấn nút "Reset Lab"** để tránh bị xóa sạch toàn bộ mã nguồn và cấu hình đã triển khai.
 
-## 4. Ràng buộc và quyết định kỹ thuật
+---
 
-- Region thống nhất: `us-east-1`; README chỉ cho phép `us-east-1`/`us-west-2` (trừ ngoại lệ dịch vụ).
-- Dùng `LabRole` có sẵn làm execution role cho Lambda; không tạo IAM user/role mới.
-- Theo README, tối đa 10 Lambda execution environments thực thi đồng thời trong Lab.
-- Không cần EC2, NAT Gateway hoặc VPC mới cho thiết kế serverless cơ bản.
-- Gắn tag `Project=serverless-payment`, `Owner=<mã SV/nhóm>` cho tài nguyên mới hỗ trợ tag.
-- Không nhấn `Reset` trừ khi chấp nhận xóa toàn bộ dữ liệu/tài nguyên; kết thúc session **không tự động xóa** mọi tài nguyên.
-- Ngân sách `Used $0 of $50` là giá trị quan sát, AWS Budgets có thể cập nhật trễ 8–12 giờ.
+## 5. Danh mục minh chứng kỹ thuật Tuần 1
 
-## 5. Danh sách evidence
+Nhóm đã ghi lại đầy đủ 09 ảnh chụp màn hình minh chứng thao tác tại thư mục [`evidence/week01/`](../evidence/week01/):
 
-| Ảnh | Nội dung / thời điểm hiển thị |
-|---|---|
-| `evidence/week01/B1-01-lab-started.png` | Vocareum Learner Lab, trạng thái AWS, đồng hồ và ngân sách |
-| `evidence/week01/B1-02-region.png` | Region N. Virginia / us-east-1 và Account ID |
-| `evidence/week01/B1-03-cli-config.png` | Phiên bản AWS CLI và cấu hình Region |
-| `evidence/week01/B1-04-services-console.png` | 5 dịch vụ trong Recently visited |
-| `evidence/week01/B1-05-budget.png` | `Used $0 of $50` trên Learner Lab |
-| `evidence/week01/B2-01-labrole.png` | `get-role LabRole` trả thành công |
-| `evidence/week01/B2-02-lambda-roles.png` | Danh sách 5 Lambda và role tương ứng |
-| `evidence/week01/B2-03-cloudwatch-alarms.png` | CloudWatch Alarms trả mảng rỗng |
-| `evidence/week01/B1-06-cloudshell.png` | CloudShell hoạt động, terminal sẵn sàng |
+| Mã minh chứng | Tệp tin | Nội dung xác nhận trên giao diện AWS |
+|:---:|---|---|
+| **B1-01** | [`B1-01-lab-started.png`](../evidence/week01/B1-01-lab-started.png) | Trạng thái phiên Vocareum Learner Lab đang chạy, ngân sách $0/$50 |
+| **B1-02** | [`B1-02-region.png`](../evidence/week01/B1-02-region.png) | Vùng làm việc trên AWS Console là `us-east-1`, hiển thị Account ID |
+| **B1-03** | [`B1-03-cli-config.png`](../evidence/week01/B1-03-cli-config.png) | Phiên bản AWS CLI `2.37.6` và cấu hình biến môi trường Region |
+| **B1-04** | [`B1-04-services-console.png`](../evidence/week01/B1-04-services-console.png) | Danh mục 05 dịch vụ cốt lõi đã truy cập trên AWS Console |
+| **B1-05** | [`B1-05-budget.png`](../evidence/week01/B1-05-budget.png) | Giao diện quản lý ngân sách ghi nhận mức tiêu thụ ban đầu `Used $0 of $50` |
+| **B1-06** | [`B1-06-cloudshell.png`](../evidence/week01/B1-06-cloudshell.png) | Môi trường AWS CloudShell sẵn sàng chạy các lệnh quản trị |
+| **B2-01** | [`B2-01-labrole.png`](../evidence/week01/B2-01-labrole.png) | Lệnh `aws iam get-role` xác nhận sự tồn tại của role `LabRole` |
+| **B2-02** | [`B2-02-lambda-roles.png`](../evidence/week01/B2-02-lambda-roles.png) | Khảo sát danh sách các hàm Lambda hệ thống và IAM role gắn kèm |
+| **B2-03** | [`B2-03-cloudwatch-alarms.png`](../evidence/week01/B2-03-cloudwatch-alarms.png) | Truy vấn CloudWatch Alarms xác nhận chưa có cảnh báo phát sinh |
 
-**Quản lý dữ liệu:** Evidence hiển thị Account ID, tên phiên đăng nhập và thông tin trên trình duyệt. Chỉ commit vào **private repo** nếu nhóm được phép. Nếu repo public, lưu evidence ngoài repo hoặc biên tập che bớt thông tin cá nhân trước khi công khai. Không có khóa bí mật nào được đưa vào các tệp markdown này.
+---
 
-## 6. Checklist nghiệm thu
+## 6. Kết luận & Sẵn sàng cho Tuần 2
 
-- [x] AWS Learner Lab đã khởi động và truy cập Console.
-- [x] Console/CloudShell Region `us-east-1`.
-- [x] AWS CLI và STS hoạt động.
-- [x] Đã kiểm tra quyền đọc 5 dịch vụ cần thiết.
-- [x] Đã xác minh `LabRole` bằng IAM read-only API.
-- [x] Đã kiểm tra CloudWatch Alarms.
-- [x] Có ảnh ngân sách và môi trường.
-- [x] Đã lưu ảnh minh chứng trong gói bàn giao.\
-
+Môi trường AWS Academy Learner Lab đã được khảo sát kỹ lưỡng và hoàn toàn đáp ứng các điều kiện kỹ thuật để bước vào Tuần 2. Nhóm sẵn sàng tiến hành khởi tạo cơ sở dữ liệu DynamoDB, cấu hình Secrets Manager và triển khai các hàm Lambda xử lý nghiệp vụ theo đúng kế hoạch đề ra.

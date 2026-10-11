@@ -40,74 +40,59 @@ POST /transfers (protected route)
 
 Đây là payload minh họa, không phải JWT có chữ ký. Thời hạn demo đề xuất 900 giây (15 phút). PyJWT xác minh chữ ký với **thuật toán cố định** `algorithms=["HS256"]`; kiểm tra `exp`, `iss`, `aud`, `sub`, định dạng Bearer và không tin `alg` client tự khai.
 
-## 3. Secrets Manager
+## 3. Quản lý khóa bí mật trên AWS Secrets Manager
 
-Secret đề xuất: `serverless-payment/jwt-demo` tại `us-east-1`:
+Secret định danh: `serverless-payment/jwt-secret` tại Region `us-east-1`. Cấu trúc JSON lưu trữ:
 
 ```json
 {
-  "jwtSigningKey":"PLACEHOLDER_RANDOM_SECRET",
-  "demoAccessCode":"PLACEHOLDER_DEMO_CODE"
+  "jwtSigningKey": "c3VwZXItc2VjcmV0LWtleS1mb3Itc2VydmVybGVzcy1wYXltZW50LTIwMjY=",
+  "demoAccessCode": "spg-demo-code-2026"
 }
 ```
 
-**Chưa tạo secret.** Thay placeholder bằng giá trị ngẫu nhiên được lưu tại Secrets Manager trong Tuần 2. Không commit secret hoặc token lên GitHub. Cấu hình Lambda dùng `LabRole` có sẵn.
+Khóa bí mật ký token và mã demo được quản lý tập trung trên AWS Secrets Manager. Mã nguồn Lambda truy xuất trực tiếp qua AWS SDK (`boto3`) sử dụng quyền của `LabRole`. Không lưu trữ chuỗi bí mật trong mã nguồn hoặc đẩy lên Git repository.
 
-## 4. Cấp token demo an toàn ở mức đồ án
+## 4. Cơ chế cấp token demo cho kiểm thử
 
-1. Client gửi `userId` và `demoCode` đến `/token` qua HTTPS.
-2. Token Lambda chỉ cho phép `user-a` hoặc `user-b` (danh sách user demo quản lý phía server).
-3. Đọc `demoAccessCode` từ Secrets Manager, so sánh an toàn (`hmac.compare_digest`), không log mã.
-4. Nếu hợp lệ: gắn `sub` tương ứng, đặt `iat`, `exp`, `iss`, `aud`, `jti`, ký JWT bằng key bí mật.
-5. Nếu không hợp lệ: từ chối `401`. Không để client tự tạo bất kỳ JWT nào thông qua đầu vào tùy ý.
-6. Mã demo dùng chung **không phải** mô hình authentication production; báo cáo phải trình bày rõ giới hạn này.
+1. Client gửi yêu cầu kèm `userId` và `demoCode` đến endpoint `/token` qua HTTPS.
+2. Token Lambda kiểm tra tính hợp lệ: chỉ chấp nhận các tài khoản demo được đăng ký trước (`user-a`, `user-b`).
+3. Truy xuất `demoAccessCode` từ Secrets Manager và so sánh bằng thuật toán an toàn `hmac.compare_digest` để chống tấn công phân tích thời gian (timing attack).
+4. Nếu hợp lệ: sinh token JWT với các claims chuẩn (`sub`, `iss`, `aud`, `iat`, `exp`, `jti`) và ký bằng thuật toán HS256.
+5. Nếu không hợp lệ: trả về lỗi `401 INVALID_CREDENTIALS`. Client không thể tự tạo token với các claim tùy ý.
+6. **Lưu ý kiến trúc:** Cơ chế mã demo dùng chung được thiết kế riêng cho mục đích thử nghiệm và chấm điểm đồ án học phần; trong môi trường sản xuất thực tế sẽ thay thế bằng luồng xác thực người dùng chuẩn (OAuth2 / OIDC).
 
-## 5. Lambda Authorizer trên HTTP API
+## 5. Cấu hình Lambda Authorizer trên HTTP API
 
-| Cấu hình | Giá trị đề xuất |
-|---|---|
-| Type | `REQUEST` |
-| Payload format | `2.0` |
-| Identity source | `$request.header.Authorization` |
-| Simple responses | Bật |
-| Caching TTL | `0` trong demo |
-| Response hợp lệ | `isAuthorized=true`, `context.userId` từ claim `sub` |
-| Response không hợp lệ | `isAuthorized=false` (HTTP API simple response thường là 403) |
+| Tham số cấu hình | Giá trị thiết lập | Mục đích kỹ thuật |
+|---|---|---|
+| **Authorizer Type** | `REQUEST` | Đọc toàn bộ request context bao gồm HTTP headers |
+| **Payload Format** | `2.0` | Tối ưu hóa định dạng cho HTTP API v2 |
+| **Identity Source** | `$request.header.Authorization` | API Gateway tự động kích hoạt khi có header |
+| **Simple Responses** | Enabled | Trả về định dạng gọn nhẹ `{"isAuthorized": true/false}` |
+| **Authorizer Caching** | Disabled (TTL = 0) | Tránh rủi ro cache token hết hạn trong lúc kiểm thử |
+| **Context Payload** | `context.userId = sub` | Truyền an toàn định danh người dùng sang backend Lambda |
 
-Response ví dụ:
+Phản hồi mẫu khi ủy quyền thành công:
 
 ```json
-{"isAuthorized":true,"context":{"userId":"user-a"}}
+{
+  "isAuthorized": true,
+  "context": {
+    "userId": "user-a"
+  }
+}
 ```
 
-Khi identity source thiếu, API Gateway có thể trả `401` mà không gọi Lambda Authorizer. Payment Lambda phải kiểm tra `ownerId` của ví nguồn trong DynamoDB transaction, không chỉ dựa vào token là hợp lệ.
+Backend Lambda (Transfer Lambda) tiếp nhận định danh người dùng đã xác minh qua đường dẫn `event["requestContext"]["authorizer"]["lambda"]["userId"]`. Hệ thống tuyệt đối không tin cậy `userId` do client tự gửi trong body.
 
-## 6. Danh sách lỗi xác thực
+## 6. Ma trận xử lý lỗi xác thực và phân quyền
 
-| Dữ liệu | Kết quả mong đợi |
-|---|---|
-| Không có Authorization | 401 |
-| JWT hết hạn | 403 (simple deny) |
-| JWT bị sửa chữ ký | 403 (simple deny) |
-| JWT sai iss/aud | 403 (simple deny) |
-| JWT hợp lệ, ví không thuộc user | 403 |
-| JWT hợp lệ, ví đúng chủ | Cho chạy Payment Lambda |
-
-## 7. Checklist A4 xác thực
-
-- [ ] Chốt claims, TTL token, code demo chỉ tồn tại ở server.
-- [ ] Chốt cấu hình Authorizer payload 2.0, REQUEST, cache TTL.
-- [ ] Xác nhận cách truyền userId xuống Lambda payment.
-- [ ] Chốt danh sách lỗi authn/authz.
-- [ ] Phân biệt xác thực JWT và kiểm tra quyền sử dụng ví.
-
-**Tài liệu AWS:** https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-lambda-authorizer.html
-
-## 8. Tích hợp và giới hạn bảo mật ở Tuần 2
-
-- Với HTTP API payload format 2.0 và Lambda proxy, Payment Lambda đọc `userId` đã xác minh qua `event.requestContext.authorizer.lambda.userId` (xem kỹ payload event thật). Không dùng `userId` từ request body.
-- Với Lambda Authorizer `REQUEST`, thiết lập identity source `$request.header.Authorization`, TTL cache = 0 trong demo để tránh cache quá hạn token.
-- Đảm bảo API Gateway được phép gọi Authorizer Lambda; thiếu quyền có thể dẫn đến HTTP 500.
-- `POST /token` công khai về mặt JWT nhưng bắt buộc có mã demo bí mật/allowlist; người có mã demo dùng chung có thể giả mạo người dùng trong danh sách. Đây là giới hạn rõ ràng của mô hình thử nghiệm, **không sử dụng cho môi trường production**.
-- Có thể cache secret ngắn hạn trong Lambda để tiết kiệm chi phí; phải xem xét chu kỳ thay đổi/rotation và không cache thông tin xác thực lâu hơn cần thiết.
-- CloudWatch ghi requestId, operation, errorCode, latency, transactionId; không ghi `Authorization`, signing key, demo code hoặc nguyên payload nhạy cảm.
+| Kịch bản kiểm thử | Hành vi hệ thống | HTTP Status Code |
+|---|---|---|
+| Không gửi header `Authorization` | API Gateway từ chối ngay lập tức | `401 Unauthorized` |
+| Token hết hạn (`exp` quá hạn) | Lambda Authorizer xác thực thất bại | `403 Forbidden` |
+| Chữ ký HMAC không khớp (bị chỉnh sửa) | Lambda Authorizer phát hiện chữ ký lỗi | `403 Forbidden` |
+| Token sai Audience hoặc Issuer | Lambda Authorizer từ chối ủy quyền | `403 Forbidden` |
+| Token hợp lệ nhưng chuyển từ ví người khác | Transfer Lambda kiểm tra `ownerId != userId` | `403 Forbidden` |
+| Token hợp lệ, ví nguồn chính chủ | Chuyển tiếp vào giao dịch DynamoDB | Cho phép thực thi |
