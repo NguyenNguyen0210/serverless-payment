@@ -18,8 +18,9 @@ flowchart TB
     Client["Client / Postman / Automated Test"]
 
     subgraph APIGW["Amazon API Gateway (HTTP API v2 - us-east-1)"]
-        TokenRoute["POST /token (Public)"]
-        TransferRoute["POST /transfers (Protected)"]
+        Ingress["Ingress & Throttling Engine\n(Default: 10 RPS, Burst: 20)"]
+        TokenRoute["POST /token\n(Rate: 2 RPS, Burst: 5)"]
+        TransferRoute["POST /transfers\n(Rate: 10 RPS, Burst: 20)"]
     end
 
     subgraph Security["Xác thực & Bảo mật (Security Layer)"]
@@ -37,17 +38,23 @@ flowchart TB
         TxTable[("Table: Transactions\nPK: userId (S)\nSK: idempotencyKey (S)")]
     end
 
+    subgraph Resilience["Khả năng phục hồi & Chịu lỗi (Resilience Layer)"]
+        DLQ[("Amazon SQS: Dead Letter Queue\n(serverless-payment-dlq)")]
+    end
+
     subgraph Monitoring["Giám sát & Nhật ký (Observability)"]
         CloudWatch[("Amazon CloudWatch Logs & Metrics")]
     end
 
-    Client -->|"1. Yêu cầu cấp token demo"| TokenRoute
+    Client -->|"Gọi API"| Ingress
+    Ingress -.->|"Vượt hạn mức RPS"| Client429["HTTP 429 Too Many Requests\n(Header: Retry-After)"]
+    Ingress -->|"1. Cấp token demo"| TokenRoute
     TokenRoute --> TokenLambda
     TokenLambda -->|"Kiểm tra demoCode"| SecretsMgr
     TokenLambda -->|"Ký JWT bằng PyJWT"| TokenLambda
     TokenLambda -.->|"Ghi log"| CloudWatch
 
-    Client -->|"2. Chuyển tiền (Bearer JWT + Idempotency-Key)"| TransferRoute
+    Ingress -->|"2. Chuyển tiền (Bearer JWT + Idempotency-Key)"| TransferRoute
     TransferRoute -->|"3. Gửi header xác thực"| AuthLambda
     AuthLambda -->|"Đọc khóa bí mật"| SecretsMgr
     AuthLambda -->|"Xác thực chữ ký & hạn dùng"| AuthLambda
@@ -59,6 +66,7 @@ flowchart TB
     TransferLambda -->|"7. Kiểm tra trùng lặp (userId, idempotencyKey)"| TxTable
     TransferLambda ==>|"8. Thực thi TransactWriteItems:\n- Update Ví nguồn (balance >= amount)\n- Update Ví đích (status == ACTIVE)\n- Put Transactions (not exists)"| WalletsTable
     TransferLambda ==>|"Ghi nhận giao dịch SUCCESS"| TxTable
+    TransferLambda -.->|"Unhandled exception / Timeout"| DLQ
     TransferLambda -.->|"Ghi log"| CloudWatch
 ```
 
@@ -102,6 +110,25 @@ flowchart TB
    - **Update Ví đích:** Cộng tiền, điều kiện `attribute_exists(walletId) AND #status = :active AND currency = :vnd`.
 6. **Kết quả:** Nếu tất cả điều kiện thỏa mãn, giao dịch commit đồng thời (HTTP 201 Created). Nếu có bất kỳ điều kiện nào vi phạm, toàn bộ giao dịch rollback về trạng thái ban đầu.
 
+### 2.4. Luồng kiểm soát lưu lượng (Rate Limiting & Throttling)
+1. **Mục đích:** Chống tấn công brute-force vào endpoint cấp token và bảo vệ backend DynamoDB/Lambda khỏi tình trạng cạn kiệt tài nguyên (DoS) khi có đột biến lưu lượng.
+2. **Cấu hình trên API Gateway HTTP API v2:**
+   - **Stage Default Throttling:** Rate Limit = 10 requests/giây (RPS), Burst Limit = 20 requests.
+   - **Route Throttling riêng biệt:**
+     - Route `POST /token`: Rate = 2 RPS, Burst = 5 (giới hạn chặt chẽ vì đây là endpoint cấp quyền thử nghiệm).
+     - Route `POST /transfers`: Rate = 10 RPS, Burst = 20.
+3. **Phản hồi khi vi phạm:** Khi client gửi request vượt quá hạn mức, API Gateway từ chối ngay tại tầng ingress với mã phản hồi **`429 Too Many Requests`** kèm header `Retry-After`. Thao tác này không kích hoạt Lambda backend, giúp tiết kiệm 100% chi phí xử lý và bảo vệ hạn ngạch tính toán của Learner Lab.
+
+### 2.5. Luồng xử lý sự cố bất thường & Hàng đợi chết (Dead Letter Queue - DLQ)
+1. **Mục đích:** Trong hệ thống tài chính, các lỗi hệ thống nghiêm trọng (unhandled exceptions, timeout hoặc sự cố phân vùng mạng giữa Lambda và DynamoDB) không được phép làm mất dấu vết giao dịch của người dùng.
+2. **Kiến trúc DLQ qua Amazon SQS:**
+   - Sử dụng một hàng đợi Standard Queue: `serverless-payment-dlq`.
+   - Cấu hình Dead Letter Queue trên hàm `Transfer Lambda`.
+3. **Cơ chế kích hoạt:**
+   - Khi Lambda gặp biệt lệ chưa bắt được (Unhandled Error) hoặc timeout trong quá trình xử lý giao dịch, bản tin sự kiện gốc (event payload) tự động được chuyển tiếp vào SQS DLQ.
+   - Hàng đợi DLQ giữ lại thông điệp lỗi (Message Retention Period: 14 ngày), cho phép đội ngũ kỹ sư kiểm tra đối soát thủ công (manual audit), tái hiện sự cố và hoàn trả trạng thái ví nếu cần thiết mà không lo mất dữ liệu.
+   - Thiết lập CloudWatch Alarm theo dõi chỉ số `ApproximateNumberOfMessagesVisible` trên SQS DLQ để phát hiện tức thì khi có lỗi hệ thống phát sinh.
+
 ---
 
 ## 3. Nhật ký quyết định kiến trúc (Architecture Decision Records - ADR)
@@ -120,6 +147,8 @@ Các quyết định thiết kế then chốt được nhóm thống nhất nh�
 | **ADR-08** | **Cơ chế Xác thực** | Tự sinh và kiểm tra JWT bằng thư viện **PyJWT (HS256)**, khóa bí mật lưu tại Secrets Manager. | Đúng yêu cầu đề bài (không dùng AWS Cognito); kiểm soát hoàn toàn vòng đời và claims của token. |
 | **ADR-09** | **Quản lý hạ tầng & VPC** | **Không sử dụng VPC riêng, NAT Gateway hay EC2** cho các hàm Lambda. | Tránh phí duy trì NAT Gateway ($0.045/giờ); Lambda có thể gọi trực tiếp DynamoDB và Secrets Manager qua AWS internal network an toàn và miễn phí. |
 | **ADR-10** | **Phân quyền IAM** | Tận dụng IAM Role có sẵn **`LabRole`** của Learner Lab. | Tuân thủ quy định môi trường học tập (không có quyền tạo IAM User hay IAM Role mới). |
+| **ADR-11** | **Kiểm soát lưu lượng** | Cấu hình **Stage & Route Throttling** trên API Gateway HTTP API (Token: 2 RPS / Burst 5; Transfers: 10 RPS / Burst 20). | Chống tấn công DoS, ngăn brute-force mã token demo; từ chối sớm với HTTP 429 tại tầng gateway giúp tiết kiệm 100% chi phí tính toán Lambda backend. |
+| **ADR-12** | **Xử lý sự cố ngoại lệ** | Tích hợp **Amazon SQS Dead Letter Queue (`serverless-payment-dlq`)** gắn với Transfer Lambda. | Bảo đảm tính kiên cường (Resilience): lưu giữ toàn bộ thông điệp lỗi khi xảy ra sự cố hạ tầng không lường trước phục vụ đối soát và khôi phục, nằm trọn trong gói Free Tier của SQS. |
 
 ---
 
@@ -129,12 +158,13 @@ Chuẩn hóa tên gọi tài nguyên phục vụ việc triển khai tự độn
 
 | Thành phần AWS | Quy ước đặt tên | Ghi chú |
 |---|---|---|
-| **API Gateway HTTP API** | `serverless-payment-api` | Endpoint HTTPS tại `us-east-1` |
+| **API Gateway HTTP API** | `serverless-payment-api` | Endpoint HTTPS tại `us-east-1` (tích hợp Route Throttling) |
 | **Lambda Token** | `serverless-payment-token` | Xử lý `POST /token` |
 | **Lambda Authorizer** | `serverless-payment-authorizer` | Lambda REQUEST Authorizer (Python 3.12, PyJWT) |
-| **Lambda Transfer** | `serverless-payment-transfer` | Xử lý `POST /transfers` |
+| **Lambda Transfer** | `serverless-payment-transfer` | Xử lý `POST /transfers` (gắn DLQ SQS) |
 | **DynamoDB Wallets** | `Wallets` | PK: `walletId` (String) |
 | **DynamoDB Transactions** | `Transactions` | PK: `userId` (String), SK: `idempotencyKey` (String) |
+| **Amazon SQS DLQ** | `serverless-payment-dlq` | Dead Letter Queue lưu vết giao dịch lỗi hệ thống |
 | **AWS Secrets Manager** | `serverless-payment/jwt-secret` | Lưu chuỗi bí mật HMAC ký JWT |
 | **CloudWatch Log Groups** | `/aws/lambda/serverless-payment-*` | Thiết lập retention 7 ngày để tiết kiệm chi phí |
 

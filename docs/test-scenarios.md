@@ -78,6 +78,13 @@ Trước khi thực hiện mỗi chu kỳ kiểm thử, dữ liệu khởi tạo
 | **TC-16** | Mô phỏng lỗi một nhánh trong `TransactWriteItems` | Ví nguồn đủ tiền nhưng ví đích vi phạm điều kiện | Toàn bộ transaction bị rollback, trả về mã lỗi thích hợp | Ví nguồn không bị trừ tiền; không xảy ra lỗi cập nhật một phần |
 | **TC-18** | Đọc nhất quán sau khi hoàn tất giao dịch | Đọc trạng thái ví ngay sau khi nhận phản hồi `201` | Dữ liệu số dư phản ánh chính xác giá trị mới | Đảm bảo tính nhất quán tức thì (Strong Consistency) |
 
+### Nhóm 6: Kiểm thử Kiểm soát lưu lượng & Khả năng chịu lỗi (Rate Limiting & DLQ Resilience)
+
+| Mã | Mô tả kịch bản | Dữ liệu đầu vào | Kết quả kỳ vọng | Cơ chế kiểm tra hạ tầng AWS |
+|:---:|---|---|:---:|---|
+| **TC-20** | Gửi request dồn dập vượt ngưỡng Rate Limit (Throttling) | Gửi burst 30 requests/giây liên tục vào route `/token` hoặc `/transfers` | Các request vượt ngưỡng nhận `429 Too Many Requests` kèm header `Retry-After` | Chặn trực tiếp tại API Gateway Ingress; không kích hoạt Lambda và không tính chi phí backend |
+| **TC-21** | Mô phỏng sự cố hệ thống nghiêm trọng kích hoạt DLQ | Giả lập lỗi ngoại lệ chưa xử lý (unhandled error/timeout) trong Transfer Lambda | Trả về `500 Internal Server Error`, payload gốc tự động chuyển vào SQS DLQ | Truy vấn hàng đợi `serverless-payment-dlq` xác nhận message được lưu vết an toàn |
+
 ---
 
 ## 4. Quy trình & Kế hoạch thực thi kiểm thử
@@ -88,13 +95,14 @@ flowchart TD
     RunTest --> CheckHTTP["3. Xác nhận mã phản hồi HTTP & Response Body"]
     CheckHTTP --> CheckDB["4. Truy vấn DynamoDB (Đối soát số dư & bản ghi Transactions)"]
     CheckDB --> CheckLogs["5. Kiểm tra CloudWatch Logs (Thời gian xử lý, mã lỗi, bảo mật)"]
-    CheckLogs --> Record["6. Ghi nhật ký kết quả & Lưu ảnh minh chứng (evidence/)"]
+    CheckLogs --> CheckDLQ["6. Kiểm tra SQS DLQ (nếu có lỗi 500 ngoại lệ)"]
+    CheckDLQ --> Record["7. Ghi nhật ký kết quả & Lưu ảnh minh chứng (evidence/)"]
 ```
 
 ### Lộ trình thực hiện qua các tuần:
 - **Tuần 2 (Kiểm thử chức năng lõi & Đơn vị):** Thực hiện các ca kiểm thử cơ bản sau khi triển khai Lambda và DynamoDB (`TC-01`, `TC-04` đến `TC-10`, `TC-14`, `TC-15`).
-- **Tuần 3 (Kiểm thử tích hợp & Chống lặp):** Thực hiện kiểm thử tích hợp toàn diện luồng API Gateway, Authorizer, Idempotency và Concurrency (`TC-02`, `TC-03`, `TC-11`, `TC-12`, `TC-13`, `TC-16`, `TC-17`, `TC-19`).
-- **Tuần 4 (Nghiệm thu tổng thể & Demo):** Tái thực thi toàn bộ 19 kịch bản kiểm thử, lưu trữ ảnh chụp minh chứng và quay video demo hệ thống (thời lượng $\le$ 10 phút).
+- **Tuần 3 (Kiểm thử tích hợp, Chống lặp, Rate Limit & DLQ):** Thực hiện kiểm thử tích hợp toàn diện luồng API Gateway Throttling, Authorizer, Idempotency, Concurrency và SQS DLQ (`TC-02`, `TC-03`, `TC-11`, `TC-12`, `TC-13`, `TC-16`, `TC-17`, `TC-19`, `TC-20`, `TC-21`).
+- **Tuần 4 (Nghiệm thu tổng thể & Demo):** Tái thực thi toàn bộ 21 kịch bản kiểm thử, lưu trữ ảnh chụp minh chứng và quay video demo hệ thống (thời lượng $\le$ 10 phút).
 
 ---
 
@@ -102,7 +110,7 @@ flowchart TD
 
 Bảng đối soát được sử dụng để ghi nhận kết quả thực tế trong các đợt chạy trên AWS Learner Lab:
 
-| Mã TC | Tên kịch bản | HTTP kỳ vọng | HTTP thực tế | Trạng thái số dư ví | Kết quả | Tệp minh chứng |
+| Mã TC | Tên kịch bản | HTTP kỳ vọng | HTTP thực tế | Trạng thái số dư ví / Hạ tầng | Kết quả | Tệp minh chứng |
 |:---:|---|:---:|:---:|---|:---:|---|
 | **TC-01** | Chuyển tiền thành công | `201` | _(Ghi nhận Tuần 2)_ | `W001 -30k`, `W002 +30k` | _Đang chờ_ | `evidence/week02/...` |
 | **TC-02** | Gửi lại cùng key (Replay) | `200` | _(Ghi nhận Tuần 3)_ | Không đổi số dư | _Đang chờ_ | `evidence/week03/...` |
@@ -116,3 +124,5 @@ Bảng đối soát được sử dụng để ghi nhận kết quả thực t�
 | **TC-10** | Số tiền không hợp lệ | `400` | _(Ghi nhận Tuần 2)_ | Không tác động | _Đang chờ_ | `evidence/week02/...` |
 | **TC-11** | Hai giao dịch tranh chấp | `201 & 409` | _(Ghi nhận Tuần 3)_ | Chỉ trừ 1 lần, không âm | _Đang chờ_ | `evidence/week03/...` |
 | **TC-12** | 10 request song song cùng key | `1x 201, 9x 200` | _(Ghi nhận Tuần 3)_ | Chỉ trừ 1 lần duy nhất | _Đang chờ_ | `evidence/week03/...` |
+| **TC-20** | Vượt ngưỡng Rate Limit | `429` | _(Ghi nhận Tuần 3)_ | Chặn tại Gateway, Retry-After header | _Đang chờ_ | `evidence/week03/...` |
+| **TC-21** | Ngoại lệ hệ thống chuyển DLQ | `500` | _(Ghi nhận Tuần 3)_ | Message chuyển vào SQS DLQ an toàn | _Đang chờ_ | `evidence/week03/...` |

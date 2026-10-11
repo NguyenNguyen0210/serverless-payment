@@ -39,6 +39,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /transfers:
     post:
       summary: Chuyển VND giữa hai ví một cách nguyên tử
@@ -91,6 +93,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
@@ -202,8 +206,24 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Vượt quá giới hạn lưu lượng (Rate Limiting / Throttling)
+      headers:
+        Retry-After:
+          description: Số giây cần chờ trước khi thử lại
+          schema:
+            type: integer
+            example: 5
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Too Many Requests
     InternalError:
-      description: Lỗi máy chủ
+      description: Lỗi máy chủ không mong đợi (sự kiện lỗi được gửi vào SQS DLQ)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

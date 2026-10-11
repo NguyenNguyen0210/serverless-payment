@@ -24,6 +24,8 @@ Môi trường thực hành AWS Academy Learner Lab cung cấp hạn mức ngân
 - **Độ trễ cập nhật của AWS Billing:** Hệ thống ghi nhận chi phí của AWS thường có độ trễ từ 8–12 giờ so với thời điểm tài nguyên thực tế hoạt động. Do đó, nhóm theo dõi ngân sách định kỳ sau mỗi phiên làm việc và không dựa hoàn toàn vào số liệu tức thời.
 - **Biện pháp tối ưu hóa chi phí:**
   - **Kiến trúc Pure Serverless:** Chỉ sử dụng API Gateway HTTP API, Lambda và DynamoDB On-Demand. Đây là các dịch vụ tính tiền theo lượng request thực tế, gần như miễn phí trong quy mô kiểm thử đồ án.
+  - **Kiểm soát lưu lượng từ Ingress (Rate Limiting):** API Gateway Throttling từ chối sớm các request vượt ngưỡng (HTTP 429), ngăn chặn tình trạng vòng lặp gọi API vô tận hoặc tấn công DoS làm cạn kiệt ngân sách tính toán của Lambda.
+  - **Hàng đợi Dead Letter Queue (Amazon SQS):** Sử dụng Standard Queue (`serverless-payment-dlq`) nằm hoàn toàn trong hạn mức AWS Free Tier (1.000.000 request/tháng miễn phí), không phát sinh phí duy trì theo giờ.
   - **Tuyệt đối không dùng tài nguyên tính phí theo giờ cao:** Không tạo NAT Gateway ($0,045/giờ $\approx$ $1,08/ngày), EC2 Instances hay Amazon RDS.
   - **Giới hạn lưu trữ CloudWatch Logs:** Thiết lập thời hạn lưu log (Log Retention) là 7 ngày để tránh phát sinh chi phí lưu trữ không cần thiết.
 
@@ -39,9 +41,10 @@ Mọi tài nguyên được nhóm tạo ra trên AWS bắt buộc phải tuân t
 - `Environment`: `Lab`
 
 ### 3.2. Tiêu chuẩn đặt tên (Naming Convention)
-- **API Gateway:** `serverless-payment-api`
+- **API Gateway:** `serverless-payment-api` (kèm Route Throttling)
 - **Lambda Functions:** `serverless-payment-token`, `serverless-payment-authorizer`, `serverless-payment-transfer`
 - **DynamoDB Tables:** `Wallets`, `Transactions`
+- **Amazon SQS DLQ:** `serverless-payment-dlq`
 - **Secrets Manager:** `serverless-payment/jwt-secret`
 - **CloudWatch Log Groups:** `/aws/lambda/serverless-payment-*`
 
@@ -54,8 +57,9 @@ Mọi tài nguyên được nhóm tạo ra trên AWS bắt buộc phải tuân t
 | **Tài nguyên Lab có sẵn** | `MainMonitoringFunction`, `RedshiftOverwatch`,... | Quản trị nền tảng của Vocareum | **Giữ nguyên, tuyệt đối không chỉnh sửa hoặc xóa** |
 | **IAM Role có sẵn** | `arn:aws:iam::<ACCOUNT_ID>:role/LabRole` | Cung cấp quyền thực thi cho Lambda | Dùng làm Execution Role cho toàn bộ Lambda dự án |
 | **Dự án: Cơ sở dữ liệu** | Bảng `Wallets` và `Transactions` | Lưu trữ thông tin ví và lịch sử giao dịch | Khởi tạo ở Tuần 2 theo thiết kế CSDL DynamoDB |
-| **Dự án: API Gateway** | `serverless-payment-api` (HTTP API v2) | Tiếp nhận HTTPS request và định tuyến | Khởi tạo ở Tuần 2–3 theo hợp đồng API |
+| **Dự án: API Gateway** | `serverless-payment-api` (HTTP API v2) | Tiếp nhận HTTPS request, Rate Limiting & định tuyến | Khởi tạo ở Tuần 2–3 theo hợp đồng API |
 | **Dự án: Lambda Functions** | Token, Authorizer, Transfer functions | Xử lý logic nghiệp vụ và xác thực JWT | Triển khai mã nguồn Python ở Tuần 2 |
+| **Dự án: Hàng đợi lỗi (DLQ)** | `serverless-payment-dlq` (Amazon SQS) | Lưu vết sự cố hệ thống nghiêm trọng phục vụ đối soát | Khởi tạo ở Tuần 2–3 theo thiết kế kiên cường |
 | **Dự án: Quản lý khóa** | `serverless-payment/jwt-secret` | Lưu trữ an toàn khóa ký JWT | Khởi tạo ở Tuần 2 trên AWS Secrets Manager |
 | **Dự án: Giám sát** | Log Groups, Metric Alarms | Theo dõi vận hành và phát hiện lỗi | Cấu hình log retention 7 ngày ở Tuần 3 |
 

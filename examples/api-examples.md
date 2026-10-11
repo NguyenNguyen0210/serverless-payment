@@ -192,3 +192,47 @@ aws dynamodb get-item \
   --consistent-read \
   --region us-east-1
 ```
+
+---
+
+## 8. Bước 6: Kiểm tra cơ chế Rate Limiting (HTTP 429)
+
+Gửi liên tiếp một đợt request dồn dập (burst > 20 requests) để kích hoạt cơ chế Throttling trên API Gateway:
+
+```bash
+# Bắn 25 requests liên tục
+for i in {1..25}; do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST "$API_URL/transfers" \
+    -H "Authorization: Bearer $JWT_TOKEN" \
+    -H "Idempotency-Key: $(uuidgen)" \
+    -H "Content-Type: application/json" \
+    -d '{"fromWalletId":"W001","toWalletId":"W002","amount":1000}'
+done
+```
+
+**Kết quả quan sát:**
+- Khoảng 10–20 requests đầu tiên được tiếp nhận xử lý (`201` hoặc `409` tùy số dư).
+- Các requests vượt ngưỡng Rate Limit bị API Gateway từ chối ngay lập tức với mã HTTP **`429`** (kèm header `Retry-After`), không kích hoạt hàm Lambda backend.
+
+---
+
+## 9. Bước 7: Đối soát hàng đợi chết (Amazon SQS DLQ) qua AWS CLI
+
+Kiểm tra số lượng thông điệp lỗi được chuyển tiếp vào SQS DLQ khi hệ thống phát sinh ngoại lệ không mong đợi:
+
+```bash
+# Lấy URL của Dead Letter Queue
+QUEUE_URL=$(aws sqs get-queue-url --queue-name serverless-payment-dlq --query 'QueueUrl' --output text --region us-east-1)
+
+# Kiểm tra số lượng bản tin lỗi trong DLQ
+aws sqs get-queue-attributes \
+  --queue-url "$QUEUE_URL" \
+  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
+  --region us-east-1
+
+# Đọc thử thông điệp lỗi trong DLQ để đối soát (nếu có)
+aws sqs receive-message \
+  --queue-url "$QUEUE_URL" \
+  --max-number-of-messages 1 \
+  --region us-east-1
+```

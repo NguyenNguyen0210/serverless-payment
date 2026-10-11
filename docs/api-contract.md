@@ -90,9 +90,9 @@ Response 409 (không đủ tiền):
 | 403 | JWT bị Authorizer từ chối (`isAuthorized=false`) hoặc không phải chủ ví nguồn |
 | 404 | Ví nguồn hoặc ví đích không tồn tại |
 | 409 | Không đủ số dư / ví bị khóa / idempotency key xung đột |
-| 429 | Quá giới hạn gọi API (nếu cấu hình) |
+| 429 | Vượt quá hạn mức lưu lượng (Rate Limiting / Throttling từ API Gateway) |
 | 503 | Xung đột DynamoDB tạm thời sau khi đã retry có giới hạn |
-| 500 | Lỗi máy chủ không mong đợi |
+| 500 | Lỗi máy chủ không mong đợi (Tự động chuyển tiếp vào Amazon SQS DLQ) |
 
 Với HTTP API Lambda Authorizer `REQUEST` trả simple response `isAuthorized=false`, API Gateway tự động trả **403 Forbidden**; khi thiếu identity source, API Gateway trả **401 Unauthorized**.
 
@@ -107,3 +107,22 @@ Endpoint tra cứu lịch sử giao dịch theo `transactionId`. Chức năng n�
 - **Ràng buộc tài khoản ví:** `fromWalletId` và `toWalletId` phải là chuỗi hợp lệ, không rỗng và khác nhau.
 - **Sinh mã giao dịch (`transactionId`):** Được sinh ngẫu nhiên từ server (UUID v4), bảo đảm tính duy nhất tuyệt đối.
 - **Phạm vi bảo vệ Idempotency:** Trong phiên bản MVP, bảng `Transactions` chỉ lưu trữ các giao dịch đã commit thành công (`SUCCESS`). Nếu giao dịch bị hủy do thiếu số dư hoặc sai thông tin ví, khóa Idempotency không bị chiếm giữ, cho phép client gửi lại yêu cầu cùng key sau khi đã khắc phục điều kiện. Khi giao dịch đã hoàn tất, việc gửi lại cùng key và payload sẽ trả về kết quả cũ kèm `replayed: true` (HTTP 200 OK), còn gửi khác payload sẽ bị từ chối với lỗi `409 IDEMPOTENCY_KEY_CONFLICT`.
+
+## Cơ chế Kiểm soát lưu lượng (Rate Limiting & Throttling)
+
+Nhằm bảo vệ hệ thống khỏi tấn công từ chối dịch vụ (DoS) và cạn kiệt tài nguyên xử lý trên Learner Lab, API Gateway được cấu hình chính sách kiểm soát lưu lượng tại tầng Ingress:
+
+- **Hạn mức Route `/token`:** Rate Limit = 2 RPS, Burst Limit = 5 requests (ngăn chặn dò quét mã demo).
+- **Hạn mức Route `/transfers`:** Rate Limit = 10 RPS, Burst Limit = 20 requests.
+- **Phản hồi lỗi 429:** Khi vượt ngưỡng, API Gateway tự động trả về:
+  ```json
+  {
+    "message": "Too Many Requests"
+  }
+  ```
+  Kèm theo HTTP Response Header `Retry-After: <số giây>` yêu cầu client tạm dừng trước khi thử lại. Lỗi này được chặn trực tiếp tại API Gateway, không phát sinh chi phí thực thi Lambda.
+
+## Cơ chế Xử lý sự cố ngoại lệ & Hàng đợi chết (Dead Letter Queue - DLQ)
+
+- Khi Transfer Lambda gặp sự cố ngoại lệ chưa xử lý (unhandled runtime exception, function timeout, hoặc lỗi kết nối DynamoDB nghiêm trọng dẫn tới mã lỗi 500), payload của request lỗi được tự động đẩy vào **Amazon SQS Dead Letter Queue (`serverless-payment-dlq`)**.
+- Bản tin trong DLQ lưu trữ đầy đủ thông tin: `timestamp`, `requestId`, `requestPayload`, và mã lỗi ngoại lệ, hỗ trợ quản trị viên đối soát thủ công và khôi phục trạng thái ví mà không làm thất thoát dữ liệu giao dịch của người dùng.

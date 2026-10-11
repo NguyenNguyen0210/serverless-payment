@@ -12,6 +12,7 @@ Hệ thống cổng thanh toán giả lập không máy chủ (Serverless Simula
 - **Nhóm thực hiện:** Nhóm Serverless
   - **Vũ Minh Đức** – Phân tích nghiệp vụ, Kiến trúc & Thiết kế kỹ thuật
   - **Nguyễn Nguyên** – Môi trường AWS, IAM, Quản trị tài nguyên & Git
+- **GitHub Repository:** [https://github.com/NguyenNguyen0210/serverless-payment](https://github.com/NguyenNguyen0210/serverless-payment)
 - **Môi trường triển khai:** AWS Academy Learner Lab (Vocareum)
 - **AWS Region thống nhất:** `us-east-1` (US East - N. Virginia)
 - **IAM Execution Role:** `arn:aws:iam::<ACCOUNT_ID>:role/LabRole`
@@ -20,7 +21,7 @@ Hệ thống cổng thanh toán giả lập không máy chủ (Serverless Simula
 
 ## 🎯 Mục tiêu và Bài toán kỹ thuật
 
-Dự án mô phỏng hoạt động chuyển tiền trực tuyến giữa các tài khoản ví số dư VND. Trong hệ thống thanh toán, các lỗi mạng, timeout, hoặc thao tác bấm nút nhiều lần từ phía người dùng có thể dẫn tới sự cố trừ tiền hai lần hoặc mất mát trạng thái. Hệ thống được thiết kế nhằm giải quyết triệt để 3 thách thức kỹ thuật cốt lõi:
+Dự án mô phỏng hoạt động chuyển tiền trực tuyến giữa các tài khoản ví số dư VND. Trong hệ thống thanh toán, các lỗi mạng, timeout, hoặc thao tác bấm nút nhiều lần từ phía người dùng có thể dẫn tới sự cố trừ tiền hai lần hoặc mất mát trạng thái. Hệ thống được thiết kế nhằm giải quyết triệt để 5 thách thức kỹ thuật cốt lõi:
 
 1. **Tính nguyên tử tài chính (Atomicity & Consistency):**
    - Số tiền chuyển được trừ khỏi ví nguồn và cộng vào ví đích đồng thời.
@@ -36,18 +37,26 @@ Dự án mô phỏng hoạt động chuyển tiền trực tuyến giữa các t
    - Định danh người dùng (`userId`) được trích xuất an toàn từ claim `sub` của JWT, ngăn chặn việc giả mạo `userId` qua body payload.
    - Giải pháp: **API Gateway HTTP API** tích hợp **Lambda Authorizer (REQUEST)**, tự kiểm tra chữ ký HS256 và thời hạn với khóa bí mật lưu trữ an toàn trong **AWS Secrets Manager**.
 
+4. **Kiểm soát lưu lượng & Chống tấn công DoS (Rate Limiting & Throttling):**
+   - Ngăn chặn tấn công brute-force vào endpoint cấp token và bảo vệ tài nguyên backend khỏi tình trạng cạn kiệt do lưu lượng đột biến.
+   - Giải pháp: Cấu hình **API Gateway Route & Stage Throttling** (`/token`: Rate 2 RPS, Burst 5; `/transfers`: Rate 10 RPS, Burst 20). Khi lưu lượng vượt ngưỡng, API Gateway tự động phản hồi `429 Too Many Requests` kèm header `Retry-After` tại tầng ingress mà không tiêu tốn tài nguyên Lambda backend.
+
+5. **Xử lý sự cố ngoại lệ & Khôi phục (Resilience & Dead Letter Queue - DLQ):**
+   - Đảm bảo không thất thoát các sự kiện lỗi hoặc giao dịch bất thường khi backend gặp sự cố hệ thống nghiêm trọng (unhandled exceptions, timeout hoặc DynamoDB degradation).
+   - Giải pháp: Tích hợp **Amazon SQS Dead Letter Queue (`serverless-payment-dlq`)** gắn với Lambda Function để lưu vết toàn bộ payload lỗi phục vụ kiểm tra đối soát thủ công (manual reconciliation) và kích hoạt cảnh báo CloudWatch.
+
 ---
 
 ## 🏗️ Kiến trúc hệ thống (Architecture)
 
-Toàn bộ hệ thống được xây dựng trên kiến trúc hướng sự kiện, hoàn toàn không máy chủ (Serverless), tận dụng các dịch vụ pin-point của AWS để tối ưu độ trễ và chi phí hoạt động:
+Toàn bộ hệ thống được xây dựng trên kiến trúc hướng sự kiện, hoàn toàn không máy chủ (Serverless), tích hợp đầy đủ kiểm soát lưu lượng và hàng đợi xử lý sự cố:
 
 ```mermaid
 flowchart TB
     Client["Client / Postman"]
     
     subgraph "API Gateway HTTP API (us-east-1)"
-        GW["API Gateway Endpoint (/token, /transfers)"]
+        GW["API Gateway Ingress\n(Route Throttling / Rate Limit: 429)"]
     end
     
     subgraph "Authentication & Security"
@@ -60,21 +69,22 @@ flowchart TB
         PL["Transfer Lambda (POST /transfers)"]
     end
     
-    subgraph "Storage Layer (DynamoDB)"
-        WAL[("Table: Wallets\n(PK: walletId)")]
-        TX[("Table: Transactions\n(PK: userId, SK: idempotencyKey)")]
+    subgraph "Resilience & Storage"
+        WAL[("DynamoDB: Wallets\n(PK: walletId)")]
+        TX[("DynamoDB: Transactions\n(PK: userId, SK: idempotencyKey)")]
+        DLQ[("Amazon SQS: DLQ\n(serverless-payment-dlq)")]
     end
     
     subgraph "Monitoring & Observability"
-        CW[("Amazon CloudWatch Logs")]
+        CW[("Amazon CloudWatch Logs & Metrics")]
     end
 
-    Client -->|"POST /token (Public)"| GW
+    Client -->|"POST /token (Throttled)"| GW
     GW -->|"Proxy"| TL
     TL -->|"Read secret"| SM
     TL -.->|"Write logs"| CW
 
-    Client -->|"POST /transfers\n(Bearer JWT + Idempotency-Key)"| GW
+    Client -->|"POST /transfers (Throttled)\n(Bearer JWT + Idempotency-Key)"| GW
     GW -->|"Invoke Authorizer"| AU
     AU -->|"Fetch signing key"| SM
     AU -->|"Validate signature & exp"| AU
@@ -83,8 +93,9 @@ flowchart TB
 
     GW -->|"Authorized Request + Context"| PL
     PL -->|"1. Validate business rules\n2. Compute canonical SHA256\n3. Check existing transaction"| PL
-    PL ==>|"TransactWriteItems:\nUpdate Source Wallet (Condition: balance >= amount)\nUpdate Destination Wallet (Condition: status == ACTIVE)\nPut Transaction (Condition: not exists)"| WAL
+    PL ==>|"TransactWriteItems:\nUpdate Source Wallet (balance >= amount)\nUpdate Destination Wallet (status == ACTIVE)\nPut Transaction (not exists)"| WAL
     PL ==>|"Atomically write record"| TX
+    PL -.->|"Unhandled error / Timeout"| DLQ
     PL -.->|"Write logs"| CW
 ```
 
@@ -122,11 +133,11 @@ Lưu trữ lịch sử giao dịch và phục vụ cơ chế chống lặp:
 
 ## 📡 Đặc tả API Endpoints
 
-| Phương thức | Đường dẫn | Phân quyền | Header bắt buộc | Mô tả |
-|---|---|---|---|---|
-| `POST` | `/token` | Public (Kiểm tra mã demo) | `Content-Type: application/json` | Cấp JWT truy cập demo có thời hạn (15 phút). |
-| `POST` | `/transfers` | Protected (Lambda Authorizer) | `Authorization: Bearer <token>`<br>`Idempotency-Key: <uuid>`<br>`Content-Type: application/json` | Thực hiện chuyển tiền an toàn giữa 2 ví. |
-| `GET` | `/transactions/{id}` | Protected (Mở rộng) | `Authorization: Bearer <token>` | Tra cứu thông tin giao dịch theo ID. |
+| Phương thức | Đường dẫn | Phân quyền | Header bắt buộc | Rate Limit & Throttling | Mô tả |
+|---|---|---|---|---|---|
+| `POST` | `/token` | Public (Kiểm tra mã demo) | `Content-Type: application/json` | Rate: 2 RPS, Burst: 5 | Cấp JWT truy cập demo có thời hạn (15 phút). Chống brute-force. |
+| `POST` | `/transfers` | Protected (Lambda Authorizer) | `Authorization: Bearer <token>`<br>`Idempotency-Key: <uuid>`<br>`Content-Type: application/json` | Rate: 10 RPS, Burst: 20 | Thực hiện chuyển tiền an toàn giữa 2 ví. Thất bại hệ thống gửi DLQ. |
+| `GET` | `/transactions/{id}` | Protected (Mở rộng) | `Authorization: Bearer <token>` | Rate: 10 RPS, Burst: 20 | Tra cứu thông tin giao dịch theo ID. |
 
 ---
 
@@ -135,23 +146,23 @@ Lưu trữ lịch sử giao dịch và phục vụ cơ chế chống lặp:
 ```text
 serverless-payment/
 ├── design/                         # Bản thiết kế kiến trúc và đặc tả kỹ thuật
-│   ├── architecture.md             # Sơ đồ kiến trúc Mermaid, tương tác & ADRs (ADR-01 -> ADR-10)
-│   └── openapi.yaml                # Đặc tả giao diện máy đọc được OpenAPI 3.0
+│   ├── architecture.md             # Sơ đồ kiến trúc Mermaid, tương tác, Rate Limit, DLQ & ADRs (ADR-01 -> ADR-12)
+│   └── openapi.yaml                # Đặc tả giao diện máy đọc được OpenAPI 3.0 (bổ sung 429 Too Many Requests)
 ├── docs/                           # Hồ sơ phân tích nghiệp vụ, an toàn và vận hành
 │   ├── project-requirements.md     # Đề bài & yêu cầu kỹ thuật đồ án (GVHD: Huỳnh Xuân Phụng)
 │   ├── business-rules.md           # 14 quy tắc nghiệp vụ chuyển tiền & bất biến số dư (BR-01 -> BR-14)
-│   ├── api-contract.md             # Đặc tả hợp đồng API (Request, Response, Error codes)
+│   ├── api-contract.md             # Đặc tả hợp đồng API, cơ chế Rate Limiting (429) & DLQ escalation
 │   ├── data-model.md               # Thiết kế CSDL DynamoDB & giao dịch ACID (TransactWriteItems)
 │   ├── auth-flow.md                # Kiến trúc xác thực JWT (PyJWT) & Lambda Authorizer
-│   ├── test-scenarios.md           # Kế hoạch & Ma trận 19 kịch bản kiểm thử (TC-01 -> TC-19)
+│   ├── test-scenarios.md           # Kế hoạch & Ma trận 21 kịch bản kiểm thử (TC-01 -> TC-21)
 │   ├── aws-environment.md          # Báo cáo khảo sát môi trường AWS Learner Lab & CLI
-│   ├── resource-management.md      # Chính sách quản trị tài nguyên & kiểm soát ngân sách $50
+│   ├── resource-management.md      # Chính sách quản trị tài nguyên, Amazon SQS DLQ & kiểm soát ngân sách $50
 │   └── worklog.md                  # Nhật ký công việc nhóm chi tiết Tuần 1
 ├── evidence/                       # Ảnh chụp minh chứng thao tác trên AWS
 │   └── week01/                     # Minh chứng tuần 1: Learner Lab, STS, CLI, Budget (B1-01 -> B2-03)
 │       └── README.md               # Danh mục chỉ mục minh chứng Tuần 1
 ├── examples/                       # Các ví dụ mẫu và kịch bản chạy thử
-│   └── api-examples.md             # Hướng dẫn kiểm thử API bằng lệnh cURL
+│   └── api-examples.md             # Hướng dẫn kiểm thử API bằng lệnh cURL (bao gồm kiểm thử Rate Limit)
 ├── infra/                          # Kịch bản triển khai hạ tầng AWS (IaC / Scripts)
 ├── src/                            # Mã nguồn các Lambda Functions (token, authorizer, payment)
 ├── tests/                          # Bộ mã kiểm thử tự động (Unit & Integration Tests)
@@ -169,15 +180,15 @@ serverless-payment/
   - [Đề bài & Yêu cầu kỹ thuật đồ án (GVHD: Huỳnh Xuân Phụng)](docs/project-requirements.md)
   - [Nhật ký công việc & Báo cáo giờ công Tuần 1](docs/worklog.md)
 - 📐 **Kiến trúc & Đặc tả:**
-  - [Kiến trúc hệ thống & Quyết định thiết kế ADR (ADR-01 -> ADR-10)](design/architecture.md)
+  - [Kiến trúc hệ thống, Rate Limiting, DLQ & Quyết định thiết kế ADR (ADR-01 -> ADR-12)](design/architecture.md)
   - [Đặc tả máy đọc được OpenAPI 3.0](design/openapi.yaml)
 - 💼 **Phân tích nghiệp vụ & Cơ sở dữ liệu:**
   - [14 Quy tắc nghiệp vụ chuyển tiền & Bất biến số dư](docs/business-rules.md)
-  - [Hợp đồng API & Mã lỗi HTTP chuẩn hóa](docs/api-contract.md)
+  - [Hợp đồng API, Mã lỗi HTTP, Rate Limit & DLQ](docs/api-contract.md)
   - [Mô hình dữ liệu DynamoDB & Giao dịch TransactWriteItems](docs/data-model.md)
   - [Kiến trúc xác thực JWT & Lambda Authorizer](docs/auth-flow.md)
 - 🧪 **Kiểm thử & Minh chứng:**
-  - [Kế hoạch & Ma trận 19 kịch bản kiểm thử (Test Scenarios)](docs/test-scenarios.md)
+  - [Kế hoạch & Ma trận 21 kịch bản kiểm thử (Test Scenarios)](docs/test-scenarios.md)
   - [Hướng dẫn kiểm thử API bằng lệnh cURL](examples/api-examples.md)
   - [Danh mục bằng chứng xác minh môi trường Tuần 1](evidence/week01/README.md)
 - ⚙️ **Hạ tầng, Chi phí & Vận hành:**
