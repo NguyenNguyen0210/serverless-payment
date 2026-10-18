@@ -108,7 +108,7 @@ flowchart TB
 | Tuần | Mục tiêu trọng tâm | Trạng thái kỹ thuật | Khối lượng giờ công | Minh chứng |
 |:---:|---|:---:|:---:|:---:|
 | **Tuần 1** | Tìm hiểu dịch vụ, thiết kế kiến trúc, hợp đồng API, schema CSDL, dựng môi trường Lab & Git | **Đạt 100%** | 16,0 giờ (8h/SV) | [09 ảnh minh chứng](evidence/week01/README.md) |
-| **Tuần 2** | Triển khai Lambda functions, Secrets Manager, PyJWT Layer, DynamoDB Table, API Gateway & Tests | **Đạt 100%** | 16,0 giờ (8h/SV) | [16 ảnh minh chứng](evidence/week02/README.md) |
+| **Tuần 2** | Triển khai Lambda functions, Secrets Manager, PyJWT Layer, DynamoDB Table, API Gateway & Tests | **Đạt 100%** | 16,0 giờ (8h/SV) | [40 ảnh minh chứng](evidence/week02/README.md) |
 | **Tuần 3** | Tích hợp hoàn chỉnh luồng end-to-end, tối ưu bảo mật, cấu hình CloudWatch Metrics/Alarms & IaC | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week03/` |
 | **Tuần 4** | Kiểm thử chịu tải, Concurrency, đối soát ngân sách $50, dọn dẹp tài nguyên, quay video demo | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week04/` |
 
@@ -154,7 +154,7 @@ Trong Tuần 2 (12/10/2026 – 18/10/2026), nhóm đã hiện thực hóa toàn 
   - [`tests/test_transfer.py`](tests/test_transfer.py): 08 unit tests kiểm tra nghiệp vụ chuyển tiền, 4 actions nguyên tử, replay chống lặp, sai hash báo 409, thiếu tiền báo 409, sai chủ ví báo 403.
   - [`tests/test_auth.py`](tests/test_auth.py): 07 unit tests kiểm tra trọn vẹn Token & Authorizer (token hợp lệ, demo code sai, token hết hạn, sai chữ ký...).
   - [`tests/events/`](tests/events/): Chuẩn hóa 3 test event JSON mô phỏng HTTP API v2 (`transfer_success.json`, `transfer_insufficient.json`, `transfer_wrong_owner.json`).
-- **Hồ sơ minh chứng Tuần 2:** Danh mục kiểm thử và đối soát tại [`evidence/week02/duc/`](evidence/week02/duc/README.md).
+- **Hồ sơ minh chứng Tuần 2:** Hoàn thành **24 ảnh minh chứng** triển khai và kiểm thử tại [`evidence/week02/duc/`](evidence/week02/duc/README.md) (`A2-01` đến `A2-24`).
 
 ---
 
@@ -213,7 +213,7 @@ serverless-payment/
 │       ├── README.md               # Danh mục tổng hợp minh chứng Tuần 2
 │       ├── nguyen/                 # 16 ảnh minh chứng của Nguyễn Nguyên (B2-01 -> B2-16)
 │       │   └── README.md           # Danh mục chi tiết minh chứng của Nguyễn Nguyên
-│       └── duc/                    # Ảnh minh chứng của Vũ Minh Đức (A2-01 -> A2-07)
+│       └── duc/                    # 24 ảnh minh chứng của Vũ Minh Đức (A2-01 -> A2-24)
 │           └── README.md           # Danh mục chi tiết minh chứng của Vũ Minh Đức
 ├── examples/                       # Các ví dụ mẫu và kịch bản chạy thử
 │   └── api-examples.md             # Hướng dẫn kiểm thử API bằng lệnh cURL (bao gồm kiểm thử Rate Limit)

@@ -3,7 +3,8 @@
 > **Học phần:** Cloud Computing (Điện toán đám mây) – Đợt 1, Năm học 2026–2027  
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Nhóm thực hiện:** Serverless (02 thành viên: Vũ Minh Đức & Nguyễn Nguyên)  
-> **Nền tảng:** AWS Academy Learner Lab (Vocareum) · **Region:** `us-east-1` · **Account ID:** `930162821234`  
+> **Nền tảng:** AWS Academy Learner Lab (Vocareum) · **Region:** `us-east-1`
+> **Tài khoản minh chứng:** Nguyễn Nguyên `930162821234` · Vũ Minh Đức `892973274103`
 > **Tuần báo cáo:** Tuần 2 (12/10/2026 – 18/10/2026)  
 
 ---
@@ -15,12 +16,12 @@
 ```
 evidence/week02/
 ├── README.md               # Danh mục minh chứng tổng hợp Tuần 2 (tệp hiện tại)
-├── nguyen/                 # Minh chứng của Nguyễn Nguyên (Đã hoàn thành 16 ảnh minh chứng)
+├── nguyen/                 # Minh chứng của Nguyễn Nguyên (16 ảnh)
 │   ├── README.md
 │   └── B2-01 -> B2-16...   # Toàn bộ ảnh chụp màn hình AWS Console & CLI
-└── duc/                    # Minh chứng của Vũ Minh Đức (Đang cập nhật)
+└── duc/                    # Minh chứng của Vũ Minh Đức (24 ảnh)
     ├── README.md
-    └── A2-01 -> A2-07...   # Ảnh chụp màn hình kiểm thử & đối soát
+    └── A2-01 -> A2-24...   # Ảnh triển khai, kiểm thử Lambda và API end-to-end
 ```
 
 ---
@@ -46,11 +47,17 @@ evidence/week02/
 - **`B2-15`:** [`B2-15-route-throttling.png`](nguyen/B2-15-route-throttling.png) – Cấu hình Route Throttling (Rate Limit 2 RPS & 10 RPS).
 - **`B2-16`:** [`B2-16-sqs-dlq.png`](nguyen/B2-16-sqs-dlq.png) – Khởi tạo hàng đợi Amazon SQS Dead Letter Queue `serverless-payment-dlq`.
 
-### 📁 Thư mục [`duc/`](duc/README.md) – Vũ Minh Đức (Đang cập nhật)
-- Các ảnh chụp kiểm thử idempotency replay, concurrency lock, và đối soát log giao dịch trên CloudWatch Logs.
+### 📁 Thư mục [`duc/`](duc/README.md) – Vũ Minh Đức (24 ảnh minh chứng)
+- **`A2-01` đến `A2-05`:** Xác nhận môi trường Learner Lab, Secrets Manager, PyJWT Layer và cấu hình Token Lambda.
+- **`A2-06` đến `A2-09`:** Kiểm thử cấp token và Lambda Authorizer với cả trường hợp thành công lẫn bị từ chối.
+- **`A2-10` đến `A2-11`:** Xác nhận bảng DynamoDB Single-Table và dữ liệu 4 ví mẫu.
+- **`A2-12` đến `A2-16`:** Kiểm thử nghiệp vụ chuyển tiền, thiếu số dư, idempotent replay, xung đột key và sai chủ ví.
+- **`A2-17` đến `A2-18`:** Kiểm thử end-to-end hai API `POST /token` và `POST /transfers` bằng Postman.
+- **`A2-19` đến `A2-22`:** Xác nhận API Gateway routes, Lambda Authorizer, tích hợp transfer và cấu hình route throttling.
+- **`A2-23` đến `A2-24`:** Đối soát CloudWatch Logs và hàng đợi SQS `serverless-payment-dlq`.
 
 ---
 
 ## 3. Tiêu chuẩn tính xác thực & Liêm chính học thuật
-- Toàn bộ ảnh minh chứng được chụp trực tiếp từ console AWS Academy Learner Lab có hiển thị rõ Account ID `930162821234` và Region `us-east-1`.
+- Toàn bộ ảnh minh chứng được chụp trực tiếp từ các phiên AWS Academy Learner Lab của từng thành viên, có hiển thị Account ID tương ứng và Region `us-east-1`.
 - Không chỉnh sửa số liệu hoặc can thiệp thông tin thời gian phiên thực hành.

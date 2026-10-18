@@ -39,7 +39,7 @@ Kho lưu trữ GitHub chứa đầy đủ toàn bộ tài liệu thiết kế, p
 | `evidence/week01/` | Tuần 1 | Toàn bộ 09 ảnh chụp màn hình minh chứng thao tác trực tiếp trên AWS Console/CLI (`B1-01` -> `B2-03`). |
 | `evidence/week02/` | Tuần 2 | Danh mục tổng hợp minh chứng Tuần 2 phân chia riêng theo 2 thành viên. |
 | `evidence/week02/nguyen/` | Tuần 2 | **16 ảnh minh chứng thực tế trên AWS của Nguyễn Nguyên** (`B2-01` -> `B2-16`): Secrets Manager, Layer, Token, DynamoDB, Authorizer, Transfer, API Gateway, Throttling, SQS DLQ. |
-| `evidence/week02/duc/` | Tuần 2 | Minh chứng kiểm thử, idempotency replay, concurrency lock và CloudWatch logs của Vũ Minh Đức (`A2-01` -> `A2-07`). |
+| `evidence/week02/duc/` | Tuần 2 | **24 ảnh minh chứng triển khai và kiểm thử của Vũ Minh Đức** (`A2-01` -> `A2-24`): Learner Lab, Secrets Manager, Lambda, DynamoDB, API Gateway, CloudWatch, SQS, xác thực và idempotency. |
 | `src/token/` | Tuần 2 | Mã nguồn hàm `serverless-payment-token` xử lý cấp phát JWT (HS256) từ Secrets Manager. |
 | `src/authorizer/` | Tuần 2 | Mã nguồn hàm `serverless-payment-authorizer` giải mã và xác thực chữ ký JWT bằng `PyJWT`. |
 | `src/transfer/` | Tuần 2 | Mã nguồn hàm `serverless-payment-transfer` xử lý DynamoDB `TransactWriteItems` và chống lặp `Idempotency-Key`. |
