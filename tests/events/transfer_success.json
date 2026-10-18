@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /transfers",
+  "headers": {"idempotency-key": "4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1"},
+  "requestContext": {
+    "requestId": "local-console-demo-request",
+    "authorizer": {"lambda": {"userId": "user-a"}}
+  },
+  "isBase64Encoded": false,
+  "body": "{\"fromWalletId\":\"W001\",\"toWalletId\":\"W002\",\"amount\":30000}"
+}
