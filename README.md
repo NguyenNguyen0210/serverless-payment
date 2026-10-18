@@ -10,8 +10,8 @@ Hệ thống cổng thanh toán giả lập không máy chủ (Serverless Simula
 - **Giảng viên hướng dẫn:** ThS. Huỳnh Xuân Phụng
 - **Đề tài:** Cổng thanh toán giả lập với API Gateway, Lambda Authorizer và DynamoDB Transaction
 - **Nhóm thực hiện:** Nhóm Serverless
-  - **Vũ Minh Đức** – Phân tích nghiệp vụ, Kiến trúc & Thiết kế kỹ thuật
-  - **Nguyễn Nguyên** – Môi trường AWS, IAM, Quản trị tài nguyên & Git
+  - **Vũ Minh Đức** – Phân tích nghiệp vụ, Kiến trúc, Thuật toán & Kiểm thử
+  - **Nguyễn Nguyên** – Môi trường AWS, IAM, Triển khai hạ tầng, Quản trị tài nguyên & Git
 - **GitHub Repository:** [https://github.com/NguyenNguyen0210/serverless-payment](https://github.com/NguyenNguyen0210/serverless-payment)
 - **Môi trường triển khai:** AWS Academy Learner Lab (Vocareum)
 - **AWS Region thống nhất:** `us-east-1` (US East - N. Virginia)
@@ -101,33 +101,80 @@ flowchart TB
 
 ---
 
+## 📈 Tiến độ triển khai thực tế theo tuần (Weekly Progress & Work Breakdown)
+
+### 🗓️ Bảng tổng hợp lộ trình 4 tuần
+
+| Tuần | Mục tiêu trọng tâm | Trạng thái kỹ thuật | Khối lượng giờ công | Minh chứng |
+|:---:|---|:---:|:---:|:---:|
+| **Tuần 1** | Tìm hiểu dịch vụ, thiết kế kiến trúc, hợp đồng API, schema CSDL, dựng môi trường Lab & Git | **Đạt 100%** | 16,0 giờ (8h/SV) | [09 ảnh minh chứng](evidence/week01/README.md) |
+| **Tuần 2** | Triển khai Lambda functions, Secrets Manager, PyJWT Layer, DynamoDB Table, API Gateway & Tests | **Đạt 100%** | 16,0 giờ (8h/SV) | [16 ảnh minh chứng](evidence/week02/README.md) |
+| **Tuần 3** | Tích hợp hoàn chỉnh luồng end-to-end, tối ưu bảo mật, cấu hình CloudWatch Metrics/Alarms & IaC | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week03/` |
+| **Tuần 4** | Kiểm thử chịu tải, Concurrency, đối soát ngân sách $50, dọn dẹp tài nguyên, quay video demo | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week04/` |
+
+---
+
+### 📍 TUẦN 1: THIẾT KẾ KIẾN TRÚC & NỀN TẢNG HẠ TẦNG (ĐÃ HOÀN THÀNH)
+
+Trong Tuần 1 (05/10/2026 – 11/10/2026), nhóm đã hoàn thiện toàn bộ hồ sơ thiết kế kỹ thuật, phân tích nghiệp vụ và xác minh môi trường lab:
+
+#### 1. Nguyễn Nguyên (8,00 giờ công – Mã công việc B1 -> B4):
+- **Khảo sát môi trường AWS Learner Lab:** Xác thực phiên làm việc STS, kiểm tra Account ID `930162821234`, Region `us-east-1`, phiên bản AWS CLI `2.37.6` và mức tiêu thụ ngân sách ban đầu `$0/$50`.
+- **Rà soát phân quyền IAM:** Kiểm tra quyền `LabRole` có sẵn, khảo sát các dịch vụ cốt lõi (API Gateway, Lambda, DynamoDB, Secrets Manager, CloudWatch).
+- **Khởi tạo & Quản trị Git:** Tạo Git repo công khai, chuẩn hóa cây thư mục, cấu hình file `.gitignore` bảo vệ khóa bí mật và thiết lập tài liệu `README.md`.
+- **Chính sách tài nguyên & DLQ:** Xây dựng quy tắc gắn thẻ (`Project=serverless-payment`), kế hoạch kiểm soát ngân sách $50 và kiến trúc hàng đợi sự cố Amazon SQS DLQ.
+- **Minh chứng Tuần 1:** Hoàn thành báo cáo [`docs/aws-environment.md`](docs/aws-environment.md), [`docs/resource-management.md`](docs/resource-management.md) và bộ 09 ảnh chụp [`evidence/week01/`](evidence/week01/README.md) (`B1-01` đến `B2-03`).
+
+#### 2. Vũ Minh Đức (8,00 giờ công – Mã công việc A1 -> A4):
+- **Phân tích nghiệp vụ thanh toán:** Thiết lập 14 quy tắc nghiệp vụ tài chính (BR-01 đến BR-14) và nguyên tắc bảo toàn số dư (zero double-spending).
+- **Hợp đồng API & OpenAPI 3.0:** Thiết kế hợp đồng API chuẩn cho `POST /token` và `POST /transfers`, định nghĩa mã lỗi HTTP, cơ chế Rate Limiting (429 Throttling) và viết đặc tả máy đọc [`design/openapi.yaml`](design/openapi.yaml).
+- **Thiết kế CSDL & DynamoDB Transaction:** Thiết kế mô hình dữ liệu bảng `Wallets` và `Transactions`, cấu trúc lệnh nguyên tử `TransactWriteItems` và thuật toán băm chuẩn hóa `requestHash`.
+- **Thiết kế xác thực & Kế hoạch kiểm thử:** Thiết kế luồng xác thực JWT qua Lambda Authorizer (HS256, PyJWT), 12 quyết định kiến trúc ADR và ma trận 21 kịch bản kiểm thử (TC-01 đến TC-21).
+- **Hồ sơ Tuần 1:** Hoàn thành 04 tài liệu chuyên sâu: [`docs/business-rules.md`](docs/business-rules.md), [`docs/api-contract.md`](docs/api-contract.md), [`docs/data-model.md`](docs/data-model.md), [`docs/auth-flow.md`](docs/auth-flow.md) và [`docs/test-scenarios.md`](docs/test-scenarios.md).
+
+---
+
+### 📍 TUẦN 2: TRIỂN KHAI CHỨC NĂNG LÕI TRÊN AWS & KIỂM THỬ (ĐÃ HOÀN THÀNH)
+
+Trong Tuần 2 (12/10/2026 – 18/10/2026), nhóm đã hiện thực hóa toàn bộ thiết kế thành mã nguồn và triển khai kiểm thử thực tế trên AWS:
+
+#### 1. Nguyễn Nguyên (8,00 giờ công – API Gateway, Lambda Authorizer, Secrets Manager & SQS DLQ):
+- **Thiết kế lưu trữ khóa JWT bằng Secrets Manager:** Khởi tạo secret `serverless-payment/jwt-secret` lưu trữ an toàn `jwtSigningKey` (≥ 32 bytes) và `demoAccessCode`; cấu hình hàm `TokenLambda` ([`src/token/lambda_function.py`](src/token/lambda_function.py)) cấp token JWT HS256 từ secret.
+- **Thiết kế Lambda Authorizer sử dụng PyJWT:** Đóng gói Lambda Layer `pyjwt-layer.zip` (Python 3.12, PyJWT 2.10.1); triển khai hàm `AuthorizerLambda` ([`src/authorizer/lambda_function.py`](src/authorizer/lambda_function.py)) xác thực Bearer JWT và truyền `context.userId`.
+- **Thiết kế API Gateway HTTP API v2:** Tiếp nhận request HTTPS, tạo 2 routes `POST /token` và `POST /transfers`, tích hợp Lambda Authorizer (REQUEST mode) bảo vệ route chuyển tiền.
+- **Thiết kế SQS Dead Letter Queue:** Khởi tạo Amazon SQS Standard Queue `serverless-payment-dlq` để lưu vết lỗi unhandled exceptions/timeout.
+- **Hồ sơ minh chứng Tuần 2:** Chụp và phân loại đầy đủ **16 ảnh minh chứng** thực tế trên AWS Console/CLI lưu tại [`evidence/week02/nguyen/`](evidence/week02/nguyen/README.md) (`B2-01` đến `B2-16`).
+
+#### 2. Vũ Minh Đức (8,00 giờ công – Cấu trúc CSDL DynamoDB, TransactWriteItems, Idempotency & Route Throttling):
+- **Thiết kế cấu trúc dữ liệu DynamoDB:** Xây dựng mô hình Single-Table trên bảng `serverless-payment` (PK/SK, Partitioning logic); viết script [`scripts/seed_wallets.py`](scripts/seed_wallets.py) nạp dữ liệu 4 ví mẫu (`W001` đến `W004`).
+- **Thiết kế chuyển tiền nguyên tử bằng `TransactWriteItems`:** Lập trình hàm `TransferLambda` ([`src/transfer/lambda_function.py`](src/transfer/lambda_function.py)) thực thi 4 actions nguyên tử: ghi Idempotency record, trừ tiền ví nguồn, cộng tiền ví đích, ghi nhận Transaction.
+- **Thiết kế cơ chế chống giao dịch trùng `Idempotency-Key`:** Thuật toán chuẩn hóa payload và băm `requestHash` (SHA-256), cơ chế Idempotent Replay trả về kết quả cũ mà không trừ tiền hai lần.
+- **Thiết kế Route Throttling:** Cấu hình Rate Limiting trên API Gateway (2 RPS cho `/token`, 10 RPS cho `/transfers`) chặn tấn công DoS và brute-force.
+- **Xây dựng bộ kiểm thử tự động (15/15 Tests Passed):**
+  - [`tests/test_transfer.py`](tests/test_transfer.py): 08 unit tests kiểm tra nghiệp vụ chuyển tiền, 4 actions nguyên tử, replay chống lặp, sai hash báo 409, thiếu tiền báo 409, sai chủ ví báo 403.
+  - [`tests/test_auth.py`](tests/test_auth.py): 07 unit tests kiểm tra trọn vẹn Token & Authorizer (token hợp lệ, demo code sai, token hết hạn, sai chữ ký...).
+  - [`tests/events/`](tests/events/): Chuẩn hóa 3 test event JSON mô phỏng HTTP API v2 (`transfer_success.json`, `transfer_insufficient.json`, `transfer_wrong_owner.json`).
+- **Hồ sơ minh chứng Tuần 2:** Danh mục kiểm thử và đối soát tại [`evidence/week02/duc/`](evidence/week02/duc/README.md).
+
+---
+
 ## 📊 Mô hình dữ liệu DynamoDB (Data Model)
 
-Hệ thống sử dụng hai bảng DynamoDB với chế độ thanh toán theo yêu cầu (On-Demand Capacity):
+Hệ thống hỗ trợ lưu trữ dữ liệu ví và giao dịch thanh toán trên nền tảng Amazon DynamoDB On-Demand Capacity:
 
-### 1. Bảng `Wallets`
-Quản lý thông tin tài khoản và số dư ví:
-- **Partition Key (PK):** `walletId` (String, ví dụ: `W001`, `W002`)
-- **Các thuộc tính:**
-  - `ownerId` (String): ID người dùng sở hữu ví (khớp với claim `sub` trong JWT).
-  - `balance` (Number): Số dư khả dụng tính bằng VND (luôn là số nguyên dương, không âm).
-  - `currency` (String): Loại tiền tệ (cố định `VND`).
-  - `status` (String): Trạng thái ví (`ACTIVE` hoặc `SUSPENDED`).
-  - `createdAt` / `updatedAt` (String): Thời gian chuẩn UTC ISO 8601.
-
-### 2. Bảng `Transactions`
-Lưu trữ lịch sử giao dịch và phục vụ cơ chế chống lặp:
-- **Partition Key (PK):** `userId` (String, lấy từ token)
-- **Sort Key (SK):** `idempotencyKey` (String, lấy từ header `Idempotency-Key`)
-- **Các thuộc tính:**
-  - `transactionId` (String): Mã định danh duy nhất của giao dịch (UUID v4 do server sinh).
-  - `requestHash` (String): Mã băm SHA-256 từ nội dung yêu cầu đã chuẩn hóa (canonical payload).
-  - `fromWalletId` (String): Ví chuyển tiền.
-  - `toWalletId` (String): Ví nhận tiền.
-  - `amount` (Number): Số tiền chuyển (VND).
-  - `currency` (String): Loại tiền tệ (`VND`).
-  - `status` (String): Trạng thái giao dịch (`SUCCESS`).
-  - `createdAt` (String): Thời gian hoàn thành giao dịch (UTC ISO 8601).
+### 1. Cấu trúc thực thể trong bảng (`serverless-payment`)
+- **Ví điện tử (`WALLET#<walletId>`):**
+  - `PK`: `WALLET#<walletId>` | `SK`: `META`
+  - `ownerId`: Định danh chủ sở hữu (khớp với JWT claim `sub`).
+  - `balance`: Số dư khả dụng (số nguyên dương VND).
+  - `currency`: Cố định `VND` | `status`: `ACTIVE` hoặc `SUSPENDED`.
+- **Lịch sử giao dịch (`TRANSFER#<transactionId>`):**
+  - `PK`: `TRANSFER#<transactionId>` | `SK`: `META`
+  - `fromWalletId`, `toWalletId`, `amount`, `currency`, `status`, `createdAt`.
+- **Kho chống lặp giao dịch (`IDEMPOTENCY#<userId>#<idempotencyKey>`):**
+  - `PK`: `IDEMPOTENCY#<userId>#<idempotencyKey>` | `SK`: `META`
+  - `requestHash`: Băm SHA-256 nội dung chuẩn hóa của request.
+  - `transactionId`: Tham chiếu đến giao dịch đã thực hiện để phản hồi Replay.
 
 ---
 
@@ -147,7 +194,7 @@ Lưu trữ lịch sử giao dịch và phục vụ cơ chế chống lặp:
 serverless-payment/
 ├── design/                         # Bản thiết kế kiến trúc và đặc tả kỹ thuật
 │   ├── architecture.md             # Sơ đồ kiến trúc Mermaid, tương tác, Rate Limit, DLQ & ADRs (ADR-01 -> ADR-12)
-│   └── openapi.yaml                # Đặc tả giao diện máy đọc được OpenAPI 3.0 (bổ sung 429 Too Many Requests)
+│   └── openapi.yaml                # Đặc tả giao diện máy đọc được OpenAPI 3.0 (HTTP 400, 401, 403, 404, 409, 429, 500, 503)
 ├── docs/                           # Hồ sơ phân tích nghiệp vụ, an toàn và vận hành
 │   ├── project-requirements.md     # Đề bài & yêu cầu kỹ thuật đồ án (GVHD: Huỳnh Xuân Phụng)
 │   ├── business-rules.md           # 14 quy tắc nghiệp vụ chuyển tiền & bất biến số dư (BR-01 -> BR-14)
@@ -157,17 +204,39 @@ serverless-payment/
 │   ├── test-scenarios.md           # Kế hoạch & Ma trận 21 kịch bản kiểm thử (TC-01 -> TC-21)
 │   ├── aws-environment.md          # Báo cáo khảo sát môi trường AWS Learner Lab & CLI
 │   ├── resource-management.md      # Chính sách quản trị tài nguyên, Amazon SQS DLQ & kiểm soát ngân sách $50
-│   └── worklog.md                  # Nhật ký công việc nhóm chi tiết Tuần 1
-├── evidence/                       # Ảnh chụp minh chứng thao tác trên AWS
-│   └── week01/                     # Minh chứng tuần 1: Learner Lab, STS, CLI, Budget (B1-01 -> B2-03)
-│       └── README.md               # Danh mục chỉ mục minh chứng Tuần 1
+│   ├── repository.md               # Thông tin kho lưu trữ GitHub và chỉ mục tài liệu
+│   └── worklog.md                  # Nhật ký công việc nhóm chi tiết theo tuần
+├── evidence/                       # Ảnh chụp minh chứng thao tác thực tế trên AWS
+│   ├── week01/                     # Minh chứng tuần 1: Learner Lab, STS, CLI, Budget (B1-01 -> B2-03)
+│   │   └── README.md               # Danh mục chỉ mục minh chứng Tuần 1
+│   └── week02/                     # Minh chứng tuần 2: Triển khai thực tế trên AWS
+│       ├── README.md               # Danh mục tổng hợp minh chứng Tuần 2
+│       ├── nguyen/                 # 16 ảnh minh chứng của Nguyễn Nguyên (B2-01 -> B2-16)
+│       │   └── README.md           # Danh mục chi tiết minh chứng của Nguyễn Nguyên
+│       └── duc/                    # Ảnh minh chứng của Vũ Minh Đức (A2-01 -> A2-07)
+│           └── README.md           # Danh mục chi tiết minh chứng của Vũ Minh Đức
 ├── examples/                       # Các ví dụ mẫu và kịch bản chạy thử
 │   └── api-examples.md             # Hướng dẫn kiểm thử API bằng lệnh cURL (bao gồm kiểm thử Rate Limit)
-├── infra/                          # Kịch bản triển khai hạ tầng AWS (IaC / Scripts)
-├── src/                            # Mã nguồn các Lambda Functions (token, authorizer, payment)
-├── tests/                          # Bộ mã kiểm thử tự động (Unit & Integration Tests)
-├── .gitignore                      # Cấu hình bảo vệ thông tin bí mật và tệp tạm thời
-└── README.md                       # Tài liệu tổng quan dự án
+├── scripts/                        # Kịch bản thực thi phụ trợ
+│   └── seed_wallets.py             # Script nạp dữ liệu ví mẫu (W001 -> W004) lên DynamoDB
+├── src/                            # Mã nguồn các Lambda Functions cốt lõi
+│   ├── token/                      # POST /token: Xác thực demoCode & cấp phát JWT HS256
+│   │   └── lambda_function.py
+│   ├── authorizer/                 # Lambda Authorizer: REQUEST mode, giải mã JWT & kiểm tra quyền
+│   │   └── lambda_function.py
+│   └── transfer/                   # POST /transfers: DynamoDB TransactWriteItems & chống lặp Idempotency
+│       └── lambda_function.py
+├── tests/                          # Bộ mã kiểm thử tự động & Mock Payloads
+│   ├── test_auth.py                # 7 Unit tests cho Token và Authorizer (PyJWT)
+│   ├── test_transfer.py            # 8 Unit tests cho Transfer Lambda & DynamoDB Transaction
+│   └── events/                     # Mẫu HTTP API v2 JSON events phục vụ kiểm thử
+│       ├── transfer_success.json
+│       ├── transfer_insufficient.json
+│       └── transfer_wrong_owner.json
+├── requirements-layer.txt          # Khai báo dependency cho Lambda Layer (PyJWT==2.10.1)
+├── requirements-test.txt           # Khai báo dependency phục vụ unit testing
+├── .gitignore                      # Cấu hình loại trừ build artifacts (*.zip, build/), cache và keys
+└── README.md                       # Tài liệu tổng quan dự án (tệp hiện tại)
 ```
 
 ---
@@ -176,9 +245,10 @@ serverless-payment/
 
 Để tìm hiểu chi tiết từng khía cạnh kỹ thuật, vui lòng tham khảo các tài liệu tương ứng:
 
-- 📋 **Yêu cầu & Quy định môn học:**
+- 📋 **Yêu cầu & Nhật ký công việc:**
   - [Đề bài & Yêu cầu kỹ thuật đồ án (GVHD: Huỳnh Xuân Phụng)](docs/project-requirements.md)
-  - [Nhật ký công việc & Báo cáo giờ công Tuần 1](docs/worklog.md)
+  - [Nhật ký công việc nhóm & Báo cáo giờ công chi tiết](docs/worklog.md)
+  - [Thông tin kho lưu trữ GitHub & Chỉ mục tài liệu](docs/repository.md)
 - 📐 **Kiến trúc & Đặc tả:**
   - [Kiến trúc hệ thống, Rate Limiting, DLQ & Quyết định thiết kế ADR (ADR-01 -> ADR-12)](design/architecture.md)
   - [Đặc tả máy đọc được OpenAPI 3.0](design/openapi.yaml)
@@ -187,47 +257,16 @@ serverless-payment/
   - [Hợp đồng API, Mã lỗi HTTP, Rate Limit & DLQ](docs/api-contract.md)
   - [Mô hình dữ liệu DynamoDB & Giao dịch TransactWriteItems](docs/data-model.md)
   - [Kiến trúc xác thực JWT & Lambda Authorizer](docs/auth-flow.md)
-- 🧪 **Kiểm thử & Minh chứng:**
+- 🧪 **Kiểm thử & Minh chứng thực tế:**
   - [Kế hoạch & Ma trận 21 kịch bản kiểm thử (Test Scenarios)](docs/test-scenarios.md)
   - [Hướng dẫn kiểm thử API bằng lệnh cURL](examples/api-examples.md)
   - [Danh mục bằng chứng xác minh môi trường Tuần 1](evidence/week01/README.md)
+  - [Danh mục tổng hợp bằng chứng triển khai Tuần 2](evidence/week02/README.md)
+  - [16 ảnh minh chứng trực tiếp trên AWS – Nguyễn Nguyên](evidence/week02/nguyen/README.md)
+  - [Minh chứng kiểm thử & CloudWatch Logs – Vũ Minh Đức](evidence/week02/duc/README.md)
 - ⚙️ **Hạ tầng, Chi phí & Vận hành:**
   - [Báo cáo xác minh môi trường AWS Learner Lab](docs/aws-environment.md)
   - [Chính sách quản trị tài nguyên & Kiểm soát ngân sách](docs/resource-management.md)
-
----
-
-## 👥 Phân công trách nhiệm & Kế hoạch triển khai
-
-### Phân công thành viên
-
-| Thành viên | Trách nhiệm chính trong đồ án |
-|---|---|
-| **Vũ Minh Đức** | Phân tích nghiệp vụ chuyển tiền; Đặc tả hợp đồng API & OpenAPI 3.0; Thiết kế CSDL DynamoDB & giao dịch ACID TransactWriteItems; Thiết kế cơ chế xác thực JWT qua Lambda Authorizer và xây dựng bộ 19 kịch bản kiểm thử. |
-| **Nguyễn Nguyên** | Khảo sát nền tảng AWS Academy Learner Lab; Cấu hình AWS CLI & xác minh quyền IAM `LabRole`; Khởi tạo và chuẩn hóa cấu trúc Git repository; Xây dựng chính sách quản trị tài nguyên, kiểm soát ngân sách $50 và thu thập hồ sơ minh chứng. |
-
-### Lộ trình thực hiện 4 tuần (Mỗi thành viên ≥ 8 giờ/tuần)
-
-- **Tuần 1: Tìm hiểu dịch vụ, thiết kế kiến trúc & Dựng nền tảng (Đã hoàn thành)**
-  - Tìm hiểu các dịch vụ AWS liên quan (API Gateway, Lambda, DynamoDB, Secrets Manager, CloudWatch).
-  - Phân tích nghiệp vụ, thiết kế kiến trúc, vẽ sơ đồ và đặc tả API.
-  - Khảo sát môi trường AWS Learner Lab (`us-east-1`, IAM `LabRole`, AWS CLI).
-  - Khởi tạo Git repository, cấu trúc thư mục, quy định gắn thẻ tài nguyên (`Project/Owner`) và ngân sách.
-- **Tuần 2: Triển khai chức năng lõi trên AWS & Kiểm thử thành phần**
-  - Khởi tạo bảng DynamoDB `Wallets` và `Transactions`.
-  - Thiết lập khóa bí mật JWT trên AWS Secrets Manager.
-  - Lập trình và triển khai các Lambda Functions: `Token Lambda`, `Transfer Lambda`.
-  - Kiểm thử độc lập từng thành phần lõi.
-- **Tuần 3: Tích hợp, Bảo mật, Giám sát & Tự động hóa**
-  - Cấu hình API Gateway HTTP API, tích hợp Lambda Authorizer (REQUEST mode, PyJWT).
-  - Tích hợp luồng chuyển tiền hoàn chỉnh và kiểm soát phân quyền (`sub` = chủ ví).
-  - Thiết lập giám sát với CloudWatch Logs, Metrics & Alarms.
-  - Xây dựng kịch bản tự động hóa / IaC (nếu có).
-- **Tuần 4: Kiểm thử tổng thể, Tối ưu chi phí, Viết báo cáo & Demo**
-  - Thực thi kiểm thử toàn diện (16+ test cases, concurrency, idempotent replay).
-  - Đo đạc chi phí thực tế, tối ưu hóa ngân sách và dọn dẹp tài nguyên trên Learner Lab.
-  - Hoàn thiện báo cáo tổng kết đồ án.
-  - Quay video demo hệ thống (thời lượng ≤ 10 phút).
 
 ---
 
@@ -240,32 +279,21 @@ serverless-payment/
    - Toàn bộ tài nguyên nhóm tạo ra đều bắt buộc gắn thẻ (Tag):
      - `Project`: `serverless-payment`
      - `Owner`: `Serverless-Team`
-   - Thiết lập thời gian lưu trữ log CloudWatch (Log Retention) hợp lý để tránh phát sinh chi phí lưu trữ không cần thiết.
+   - Thiết lập thời gian lưu trữ log CloudWatch (Log Retention: 7 ngày) để tránh phát sinh chi phí lưu trữ không cần thiết.
    - Không sử dụng các tài nguyên trả phí theo giờ cao như VPC NAT Gateway, RDS hay EC2 Instances.
 
 ---
 
-## 🚀 Hướng dẫn bắt đầu (Quick Start)
+## 🚀 Hướng dẫn chạy kiểm thử cục bộ (Local Testing)
 
-### 1. Cấu hình terminal với AWS CLI
-
-Thiết lập thông tin phiên đăng nhập từ AWS Academy Learner Lab vào terminal của bạn:
+### 1. Cài đặt thư viện kiểm thử
 
 ```bash
-export AWS_REGION=us-east-1
-export AWS_DEFAULT_REGION=us-east-1
-export AWS_PAGER=""
-
-# Kiểm tra danh tính đang sử dụng
-aws sts get-caller-identity
+pip install -r requirements-test.txt
 ```
 
-### 2. Kiểm tra quyền và các dịch vụ cơ bản
+### 2. Thực thi toàn bộ bộ Unit Tests (15 test cases)
 
 ```bash
-# Kiểm tra danh sách bảng DynamoDB
-aws dynamodb list-tables --region us-east-1
-
-# Kiểm tra thông tin LabRole
-aws iam get-role --role-name LabRole
+python -m unittest discover -s tests -v
 ```
