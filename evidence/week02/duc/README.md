@@ -3,7 +3,7 @@
 > **Học phần:** Cloud Computing (Điện toán đám mây) – Đợt 1, Năm học 2026–2027
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)
 > **Người thực hiện:** Vũ Minh Đức
-> **Phạm vi:** Lambda, Secrets Manager, DynamoDB, API Gateway, CloudWatch, SQS, giao dịch nguyên tử, idempotency và kiểm thử API.
+> **Phạm vi:** Lambda, Secrets Manager, DynamoDB, API Gateway, SQS, giao dịch nguyên tử, idempotency và kiểm thử API.
 > **Nền tảng:** AWS Academy Learner Lab · **Region:** `us-east-1` · **Account ID:** `892973274103`
 > **Thời điểm ghi nhận:** Ngày 18/10/2026
 
@@ -33,10 +33,8 @@
 | **A2-18** | [`A2-18-api-transfer-success.png`](A2-18-api-transfer-success.png) | Kiểm thử end-to-end `POST /transfers` bằng Postman trả HTTP `201` cùng dữ liệu giao dịch. |
 | **A2-19** | [`A2-19-api-gateway-routes.png`](A2-19-api-gateway-routes.png) | API Gateway HTTP API có hai route `POST /token` và `POST /transfers`; route transfer đã gắn integration và authorizer. |
 | **A2-20** | [`A2-20-api-gateway-lambda-authorizer.png`](A2-20-api-gateway-lambda-authorizer.png) | Lambda Authorizer được gắn vào `POST /transfers`, sử dụng payload 2.0, simple response và header `Authorization`. |
-| **A2-21** | [`A2-21-api-transfer-integration-success.png`](A2-21-api-transfer-integration-success.png) | Kiểm thử tích hợp API Gateway–Authorizer–Transfer Lambda bằng Postman trả HTTP `201`. |
-| **A2-22** | [`A2-22-api-gateway-route-throttling.png`](A2-22-api-gateway-route-throttling.png) | Xác nhận route throttling: `/token` 2 RPS, burst 5; `/transfers` 10 RPS, burst 20. |
-| **A2-23** | [`A2-23-cloudwatch-authorizer-logs.png`](A2-23-cloudwatch-authorizer-logs.png) | CloudWatch Logs ghi nhận các lần Authorizer từ chối JWT hết hạn cùng thời gian và thông số thực thi. |
-| **A2-24** | [`A2-24-sqs-dead-letter-queue.png`](A2-24-sqs-dead-letter-queue.png) | Hàng đợi SQS Standard `serverless-payment-dlq` đã được tạo tại `us-east-1` và bật mã hóa SSE-SQS. |
+| **A2-21** | [`A2-21-api-gateway-route-throttling.png`](A2-21-api-gateway-route-throttling.png) | Xác nhận route throttling: `/token` 2 RPS, burst 5; `/transfers` 10 RPS, burst 20. |
+| **A2-22** | [`A2-22-sqs-dead-letter-queue.png`](A2-22-sqs-dead-letter-queue.png) | Hàng đợi SQS Standard `serverless-payment-dlq` đã được tạo tại `us-east-1` và bật mã hóa SSE-SQS. |
 
 ---
 

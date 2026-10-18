@@ -19,9 +19,9 @@ evidence/week02/
 ├── nguyen/                 # Minh chứng của Nguyễn Nguyên (16 ảnh)
 │   ├── README.md
 │   └── B2-01 -> B2-16...   # Toàn bộ ảnh chụp màn hình AWS Console & CLI
-└── duc/                    # Minh chứng của Vũ Minh Đức (24 ảnh)
+└── duc/                    # Minh chứng của Vũ Minh Đức (22 ảnh)
     ├── README.md
-    └── A2-01 -> A2-24...   # Ảnh triển khai, kiểm thử Lambda và API end-to-end
+    └── A2-01 -> A2-22...   # Ảnh triển khai, kiểm thử Lambda và API end-to-end
 ```
 
 ---
@@ -47,14 +47,14 @@ evidence/week02/
 - **`B2-15`:** [`B2-15-route-throttling.png`](nguyen/B2-15-route-throttling.png) – Cấu hình Route Throttling (Rate Limit 2 RPS & 10 RPS).
 - **`B2-16`:** [`B2-16-sqs-dlq.png`](nguyen/B2-16-sqs-dlq.png) – Khởi tạo hàng đợi Amazon SQS Dead Letter Queue `serverless-payment-dlq`.
 
-### 📁 Thư mục [`duc/`](duc/README.md) – Vũ Minh Đức (24 ảnh minh chứng)
+### 📁 Thư mục [`duc/`](duc/README.md) – Vũ Minh Đức (22 ảnh minh chứng)
 - **`A2-01` đến `A2-05`:** Xác nhận môi trường Learner Lab, Secrets Manager, PyJWT Layer và cấu hình Token Lambda.
 - **`A2-06` đến `A2-09`:** Kiểm thử cấp token và Lambda Authorizer với cả trường hợp thành công lẫn bị từ chối.
 - **`A2-10` đến `A2-11`:** Xác nhận bảng DynamoDB Single-Table và dữ liệu 4 ví mẫu.
 - **`A2-12` đến `A2-16`:** Kiểm thử nghiệp vụ chuyển tiền, thiếu số dư, idempotent replay, xung đột key và sai chủ ví.
 - **`A2-17` đến `A2-18`:** Kiểm thử end-to-end hai API `POST /token` và `POST /transfers` bằng Postman.
-- **`A2-19` đến `A2-22`:** Xác nhận API Gateway routes, Lambda Authorizer, tích hợp transfer và cấu hình route throttling.
-- **`A2-23` đến `A2-24`:** Đối soát CloudWatch Logs và hàng đợi SQS `serverless-payment-dlq`.
+- **`A2-19` đến `A2-21`:** Xác nhận API Gateway routes, Lambda Authorizer và cấu hình route throttling.
+- **`A2-22`:** Xác nhận hàng đợi SQS `serverless-payment-dlq`.
 
 ---
 

@@ -112,7 +112,7 @@ Bảng đối soát được sử dụng để ghi nhận kết quả thực t�
 
 | Mã TC | Tên kịch bản | HTTP kỳ vọng | HTTP thực tế | Trạng thái số dư ví / Hạ tầng | Kết quả | Tệp minh chứng |
 |:---:|---|:---:|:---:|---|:---:|---|
-| **TC-01** | Chuyển tiền thành công | `201` | `201` | `W001 -30k`, `W002 +30k` | **Đạt** | [`A2-13`](../evidence/week02/duc/A2-13-transfer-test-success.png), [`A2-18`](../evidence/week02/duc/A2-18-api-transfer-success.png), [`A2-21`](../evidence/week02/duc/A2-21-api-transfer-integration-success.png) |
+| **TC-01** | Chuyển tiền thành công | `201` | `201` | `W001 -30k`, `W002 +30k` | **Đạt** | [`A2-13`](../evidence/week02/duc/A2-13-transfer-test-success.png), [`A2-18`](../evidence/week02/duc/A2-18-api-transfer-success.png) |
 | **TC-02** | Gửi lại cùng key (Replay) | `200` | `200` | Không đổi số dư, `replayed: true` | **Đạt** | [`A2-14`](../evidence/week02/duc/A2-14-transfer-test-idempotent-replay.png) |
 | **TC-03** | Trùng key khác nội dung | `409` | `409` | Không đổi số dư | **Đạt** | [`A2-15`](../evidence/week02/duc/A2-15-transfer-test-idempotency-conflict.png) |
 | **TC-04** | Thiếu Authorization | `401` | _(Ghi nhận Tuần 3)_ | Không tác động | _Đang chờ_ | `evidence/week03/...` |
