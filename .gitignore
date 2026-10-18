@@ -1,24 +1,44 @@
-# Python
-__pycache__/
-*.pyc
-.venv/
+# Build & Packaging Artifacts
+build/
+dist/
+*.zip
+*.tar.gz
+*.egg-info/
 
-# Environment variables
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment Variables & Secrets
 .env
 .env.*
 !.env.example
 
-# AWS credentials
+# AWS Credentials & Keys
 .aws/
 credentials
 *.pem
 *.ppk
 *.key
 
-# IDE
+# IDE & Editors
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# OS
+# OS Artifacts
 .DS_Store
-Thumbs.db   
+Thumbs.db
+Desktop.ini
+*.log
