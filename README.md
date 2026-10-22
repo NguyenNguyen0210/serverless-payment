@@ -125,7 +125,7 @@ flowchart TB
 |:---:|---|:---:|:---:|:---:|
 | **Tuần 1** | Tìm hiểu dịch vụ, thiết kế kiến trúc, hợp đồng API, schema CSDL, dựng môi trường Lab & Git | **Đạt 100%** | 16,0 giờ (8h/SV) | [09 ảnh minh chứng](evidence/week01/README.md) |
 | **Tuần 2** | Triển khai 5 Standalone Lambdas, Secrets Manager, PyJWT Layer, 3 DynamoDB Tables, API Gateway 5 Routes, Scripts CSDL & Tests | **Đạt 100%** | 16,0 giờ (8h/SV) | [38 ảnh minh chứng](evidence/week02/README.md) |
-| **Tuần 3** | Tích hợp hoàn chỉnh luồng end-to-end, tối ưu bảo mật, cấu hình CloudWatch Metrics/Alarms & IaC | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week03/` |
+| **Tuần 3** | Tích hợp hoàn chỉnh luồng end-to-end, tối ưu bảo mật, cấu hình CloudWatch Metrics/Alarms & IaC | **Đang thực hiện** | 16,0 giờ (8h/SV) | [22 ảnh minh chứng](evidence/week03/README.md) |
 | **Tuần 4** | Kiểm thử chịu tải, Concurrency, đối soát ngân sách $50, dọn dẹp tài nguyên, quay video demo | *Kế hoạch* | 16,0 giờ (8h/SV) | `evidence/week04/` |
 
 ---
