@@ -1,0 +1,20 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /transfers",
+  "rawPath": "/transfers",
+  "headers": {
+    "content-type": "application/json",
+    "idempotency-key": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  "requestContext": {
+    "requestId": "test-request-002-replay",
+    "authorizer": {
+      "lambda": {
+        "userId": "user-a"
+      }
+    }
+  },
+  "isBase64Encoded": false,
+  "body": "{\"fromWalletId\":\"W001\",\"toWalletId\":\"W002\",\"amount\":1000}"
+}
+

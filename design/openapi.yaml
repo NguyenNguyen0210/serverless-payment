@@ -1,23 +1,24 @@
 openapi: 3.0.3
 info:
   title: Serverless Payment Gateway (Simulated)
-  version: "0.1.0-design"
+  version: "2.0.0"
   description: >-
     Đặc tả giao diện API hệ thống cổng thanh toán giả lập không máy chủ (Serverless Payment Gateway)
-    trên AWS. Hệ thống bảo đảm tính toàn vẹn dữ liệu tài chính (DynamoDB TransactWriteItems),
-    cơ chế chống lặp yêu cầu (Idempotency) và xác thực JWT qua Lambda Authorizer.
+    trên AWS. Hệ thống sử dụng kiến trúc 3 bảng DynamoDB, bảo đảm tính toàn vẹn tài chính qua
+    DynamoDB TransactWriteItems, cơ chế chống lặp Idempotency vĩnh viễn, kiểm soát truy cập qua
+    Lambda Authorizer (PyJWT), Route Throttling và Dead Letter Queue (Amazon SQS DLQ).
 servers:
   - url: https://{apiId}.execute-api.us-east-1.amazonaws.com
     description: Endpoint API Gateway HTTP API v2 tại Region us-east-1
     variables:
       apiId:
         default: serverless-payment
-        description: API ID do API Gateway sinh ra sau khi triển khai
+        description: Mã định danh HTTP API do API Gateway sinh ra sau khi triển khai
 paths:
-  /token:
+  /auth/token:
     post:
-      summary: Cấp JWT cho tài khoản thử nghiệm
-      description: Không yêu cầu JWT; kiểm tra demoAccessCode và allowlist server-side.
+      summary: Cấp JWT Bearer cho tài khoản thử nghiệm
+      description: Route công khai; xác thực demoCode qua AWS Secrets Manager và đối chiếu danh sách allowlist.
       operationId: issueDemoToken
       requestBody:
         required: true
@@ -41,13 +42,15 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /transfers:
     post:
-      summary: Chuyển VND giữa hai ví một cách nguyên tử
+      summary: Chuyển tiền nguyên tử giữa hai ví VND
       description: >-
-        Yêu cầu JWT và Idempotency-Key. Nếu giao dịch đã SUCCESS,
-        trùng key+cùng requestHash thì replay 200; trùng key+khác hash trả 409.
-        Lỗi chưa commit không chiếm key trong MVP.
+        Yêu cầu Bearer JWT và header Idempotency-Key. Thực thi 4 hành động nguyên tử trong một
+        lệnh TransactWriteItems. Nếu lặp key cũ với cùng nội dung trả 200 Replayed; khác nội dung trả 409 Conflict.
       operationId: transferMoney
       security:
         - bearerAuth: []
@@ -55,7 +58,7 @@ paths:
         - in: header
           name: Idempotency-Key
           required: true
-          description: UUID v4 do client tạo, scope theo userId từ JWT
+          description: UUID v4 do client tạo, phân định phạm vi theo userId từ JWT
           schema:
             type: string
             format: uuid
@@ -72,13 +75,13 @@ paths:
               amount: 30000
       responses:
         '201':
-          description: Giao dịch lần đầu được commit
+          description: Giao dịch lần đầu được commit thành công
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransferResponse'
         '200':
-          description: Replay giao dịch đã commit, không chuyển thêm
+          description: Replay giao dịch đã thành công trước đó (không trừ thêm tiền)
           content:
             application/json:
               schema:
@@ -97,14 +100,133 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/TemporarilyUnavailable'
+
+  /wallets/{walletId}:
+    get:
+      summary: Tra cứu thông tin và số dư ví điện tử
+      description: Yêu cầu JWT. Người gọi chỉ được tra cứu ví thuộc sở hữu của chính mình (ownerId == sub).
+      operationId: getWalletById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: walletId
+          required: true
+          description: Mã định danh ví điện tử
+          schema:
+            type: string
+          example: W001
+      responses:
+        '200':
+          description: Lấy thông tin ví thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /transactions/{transactionId}:
+    get:
+      summary: Tra cứu chi tiết một giao dịch theo ID
+      description: Yêu cầu JWT. Người gọi phải là chủ sở hữu của ví nguồn hoặc ví đích tham gia giao dịch.
+      operationId: getTransactionById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          description: Mã định danh giao dịch (UUID)
+          schema:
+            type: string
+          example: 8e5f2a11-7360-496b-bfdc-947f6d2f31b8
+      responses:
+        '200':
+          description: Lấy chi tiết giao dịch thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /wallets/{walletId}/transactions:
+    get:
+      summary: Tra cứu lịch sử giao dịch của ví với phân trang
+      description: >-
+        Yêu cầu JWT. Truy vấn kết hợp cả chiều chuyển đi (FromWalletIndex) và nhận về (ToWalletIndex),
+        sắp xếp giảm dần theo thời gian. Hỗ trợ phân trang bằng con trỏ nextToken.
+      operationId: getWalletTransactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: walletId
+          required: true
+          description: Mã định danh ví điện tử
+          schema:
+            type: string
+          example: W001
+        - in: query
+          name: limit
+          required: false
+          description: Số lượng bản ghi tối đa trả về trên mỗi trang (1 đến 50, mặc định 20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          example: 10
+        - in: query
+          name: nextToken
+          required: false
+          description: Con trỏ phân trang dạng Base64 lấy từ phản hồi trước
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lấy lịch sử giao dịch thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletTransactionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
   schemas:
     TokenRequest:
       type: object
@@ -114,21 +236,27 @@ components:
         userId:
           type: string
           enum: [user-a, user-b]
+          example: user-a
         demoCode:
           type: string
           minLength: 1
+          example: spg-demo-code-2026
+
     TokenResponse:
       type: object
       required: [accessToken, tokenType, expiresIn]
       properties:
         accessToken:
           type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         tokenType:
           type: string
           enum: [Bearer]
+          example: Bearer
         expiresIn:
           type: integer
           example: 900
+
     TransferRequest:
       type: object
       additionalProperties: false
@@ -137,37 +265,131 @@ components:
         fromWalletId:
           type: string
           minLength: 1
+          example: W001
         toWalletId:
           type: string
           minLength: 1
+          example: W002
         amount:
           type: integer
           minimum: 1
           format: int64
+          example: 30000
+
     TransferResponse:
       type: object
       required: [transactionId, fromWalletId, toWalletId, amount, currency, status, replayed, createdAt]
       properties:
         transactionId:
           type: string
+          format: uuid
+          example: 8e5f2a11-7360-496b-bfdc-947f6d2f31b8
         fromWalletId:
           type: string
+          example: W001
         toWalletId:
           type: string
+          example: W002
         amount:
           type: integer
           minimum: 1
+          example: 30000
         currency:
           type: string
           enum: [VND]
+          example: VND
         status:
           type: string
           enum: [SUCCESS]
+          example: SUCCESS
         replayed:
           type: boolean
+          example: false
         createdAt:
           type: string
           format: date-time
+          example: "2026-10-22T06:00:00Z"
+
+    WalletResponse:
+      type: object
+      required: [walletId, ownerId, balance, currency, status, createdAt, updatedAt]
+      properties:
+        walletId:
+          type: string
+          example: W001
+        ownerId:
+          type: string
+          example: user-a
+        balance:
+          type: integer
+          example: 70000
+        currency:
+          type: string
+          enum: [VND, USD]
+          example: VND
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED]
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-22T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-22T06:00:00Z"
+
+    TransactionDetailResponse:
+      type: object
+      required: [transactionId, fromWalletId, toWalletId, amount, currency, status, createdAt]
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          example: 8e5f2a11-7360-496b-bfdc-947f6d2f31b8
+        fromWalletId:
+          type: string
+          example: W001
+        toWalletId:
+          type: string
+          example: W002
+        amount:
+          type: integer
+          example: 30000
+        currency:
+          type: string
+          enum: [VND]
+          example: VND
+        status:
+          type: string
+          enum: [SUCCESS]
+          example: SUCCESS
+        timeKey:
+          type: string
+          example: "2026-10-22T06:00:00Z#8e5f2a11-7360-496b-bfdc-947f6d2f31b8"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-22T06:00:00Z"
+
+    WalletTransactionsResponse:
+      type: object
+      required: [walletId, items]
+      properties:
+        walletId:
+          type: string
+          example: W001
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionDetailResponse'
+        nextToken:
+          type: string
+          nullable: true
+          description: Con trỏ trang kế tiếp (null nếu là trang cuối cùng)
+          example: "eyJFeGNsdXNpdmVTdGFydEtleSI6IH...}"
+
     Error:
       type: object
       required: [error]
@@ -178,39 +400,47 @@ components:
           properties:
             code:
               type: string
+              example: INVALID_AMOUNT
             message:
               type: string
+              example: "amount must be positive integer"
+
   responses:
     BadRequest:
-      description: Dữ liệu không hợp lệ
+      description: Dữ liệu yêu cầu không hợp lệ hoặc thiếu trường bắt buộc
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
     Unauthorized:
-      description: Thiếu token hoặc không đủ credential
+      description: Không có header Authorization hoặc sai mã demoCode
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
     Forbidden:
-      description: JWT bị từ chối hoặc không có quyền đối với ví
+      description: Token JWT hết hạn, sai chữ ký hoặc không có quyền sở hữu đối với ví
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
     NotFound:
-      description: Ví không tồn tại hoặc bị ẩn theo chính sách truy cập
+      description: Ví điện tử hoặc giao dịch không tồn tại
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
     Conflict:
-      description: Thiếu tiền, ví bị khóa hoặc idempotency conflict
+      description: Số dư không đủ, ví bị khóa hoặc xung đột Idempotency-Key
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
     TooManyRequests:
       description: Vượt quá giới hạn lưu lượng (Rate Limiting / Throttling)
       headers:
         Retry-After:
-          description: Số giây cần chờ trước khi thử lại
+          description: Số giây client cần chờ trước khi gửi lại request
           schema:
             type: integer
             example: 5
@@ -223,12 +453,8 @@ components:
                 type: string
                 example: Too Many Requests
     InternalError:
-      description: Lỗi máy chủ không mong đợi (sự kiện lỗi được gửi vào SQS DLQ)
+      description: Lỗi hệ thống nội bộ máy chủ (sự kiện lỗi được ghi vào SQS DLQ)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    TemporarilyUnavailable:
-      description: Xung đột hệ thống tạm thời, có thể thử lại
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'

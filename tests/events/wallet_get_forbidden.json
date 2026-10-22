@@ -1,0 +1,17 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /wallets/{walletId}",
+  "rawPath": "/wallets/W002",
+  "pathParameters": {
+    "walletId": "W002"
+  },
+  "requestContext": {
+    "requestId": "demo-wallet-get-002",
+    "authorizer": {
+      "lambda": {
+        "userId": "user-a"
+      }
+    }
+  }
+}
+

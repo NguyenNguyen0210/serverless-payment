@@ -1,0 +1,11 @@
+{
+  "type": "REQUEST",
+  "version": "2.0",
+  "routeKey": "POST /transfers",
+  "rawPath": "/transfers",
+  "headers": {},
+  "requestContext": {
+    "requestId": "demo-auth-req-002"
+  }
+}
+

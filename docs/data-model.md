@@ -5,27 +5,42 @@
 > **Người thực hiện:** Vũ Minh Đức  
 > **Phối hợp thực hiện:** Nguyễn Nguyên  
 > **AWS Region:** `us-east-1` · **Chế độ Capacity:** On-Demand (Pay-Per-Request)  
-> **Phiên bản:** 1.0 (Giai đoạn Thiết kế – Tuần 1)  
+> **Phiên bản:** 2.0 (Kiến trúc 3 bảng chuyên biệt & 2 GSIs)  
 
 ---
 
-## 1. Bảng `Wallets` (Quản lý tài khoản và số dư ví)
+## 1. Tổng quan kiến trúc 3 Bảng DynamoDB
 
-Bảng `Wallets` lưu trữ số dư và trạng thái tài khoản. Chế độ thanh toán theo yêu cầu (On-Demand) giúp tối ưu hóa hoàn toàn chi phí trên AWS Learner Lab:
+Hệ thống sử dụng **03 bảng DynamoDB chuyên biệt** thay vì dồn chung, kết hợp chế độ thanh toán theo yêu cầu (**On-Demand Capacity Mode**) nhằm bảo đảm:
+1. **Tuân thủ nguyên tắc chuẩn hóa dữ liệu & trách nhiệm đơn lẻ (Single Responsibility):** Tách biệt rõ ràng giữa quản lý số dư ví, nhật ký giao dịch tài chính, và kho lưu trữ chống trùng lặp yêu cầu.
+2. **Hiệu năng & Tối ưu chi phí:** Tránh scan toàn bảng, mọi truy vấn đều đạt độ phức tạp $O(1)$ hoặc $O(\log N)$ qua Primary Key hoặc Global Secondary Index (GSI).
+3. **Tính nguyên tử tài chính (ACID):** Thực thi lệnh `TransactWriteItems` đồng thời trên cả 3 bảng với 4 hành động (All-or-Nothing).
 
-### 1.1. Cấu trúc thuộc tính (Schema Definition)
+```
+Amazon DynamoDB (us-east-1, On-Demand)
+├── serverless-payment-wallets         (Quản lý ví & số dư)
+├── serverless-payment-transactions    (Nhật ký giao dịch + 2 GSIs)
+└── serverless-payment-idempotency     (Kho lưu khóa chống trùng lặp)
+```
 
-| Thuộc tính | Kiểu dữ liệu DynamoDB | Ràng buộc kỹ thuật | Ý nghĩa & Mục đích sử dụng |
+---
+
+## 2. Chi tiết cấu trúc từng bảng
+
+### 2.1. Bảng `serverless-payment-wallets` (Quản lý tài khoản & Số dư ví)
+Lưu trữ thông tin định danh, chủ sở hữu, trạng thái và số dư khả dụng của các ví điện tử trong hệ thống:
+
+| Thuộc tính | Kiểu dữ liệu | Vai trò / Ràng buộc kỹ thuật | Ý nghĩa & Mục đích sử dụng |
 |---|:---:|---|---|
-| `walletId` | `S` (String) | **Partition Key (PK)** | Mã định danh duy nhất của ví (ví dụ: `W001`, `W002`). |
-| `ownerId` | `S` (String) | Bắt buộc, Indexed logic | ID chủ sở hữu ví (khớp với claim `sub` trong JWT). |
-| `balance` | `N` (Number) | Số nguyên dương, $\ge 0$ | Số dư khả dụng bằng VND (không dùng số thực / float). |
-| `currency` | `S` (String) | Cố định `VND` | Loại tiền tệ của ví. |
-| `status` | `S` (String) | `ACTIVE` \| `SUSPENDED` | Trạng thái hoạt động của ví. |
+| `walletId` | `S` (String) | **Partition Key (PK)** | Mã định danh duy nhất của ví (ví dụ: `W001`, `W002`, regex `^[A-Za-z0-9_-]{1,64}$`). |
+| `ownerId` | `S` (String) | Bắt buộc | ID chủ sở hữu ví (khớp với claim `sub` trong JWT, ví dụ: `user-a`, `user-b`). |
+| `balance` | `N` (Number) | Bắt buộc, số nguyên $\ge 0$ | Số dư khả dụng tính theo đơn vị VND (không dùng số thực float). |
+| `currency` | `S` (String) | Cố định `VND` (hoặc `USD`) | Loại tiền tệ của ví. |
+| `status` | `S` (String) | `ACTIVE` \| `SUSPENDED` | Trạng thái hoạt động của ví. Chỉ ví `ACTIVE` mới được giao dịch. |
 | `createdAt` | `S` (String) | Chuẩn ISO 8601 UTC | Thời điểm tạo ví ban đầu. |
 | `updatedAt` | `S` (String) | Chuẩn ISO 8601 UTC | Thời điểm cập nhật số dư gần nhất. |
 
-### 1.2. Bản ghi mẫu khởi tạo (Seed Data)
+**Bản ghi mẫu (Seed Data):**
 ```json
 {
   "walletId": "W001",
@@ -33,113 +48,128 @@ Bảng `Wallets` lưu trữ số dư và trạng thái tài khoản. Chế độ
   "balance": 100000,
   "currency": "VND",
   "status": "ACTIVE",
-  "createdAt": "2026-10-10T00:00:00Z",
-  "updatedAt": "2026-10-10T00:00:00Z"
+  "createdAt": "2026-10-22T00:00:00Z",
+  "updatedAt": "2026-10-22T00:00:00Z"
 }
 ```
 
 ---
 
-## 2. Bảng `Transactions` (Lịch sử giao dịch & Idempotency Store)
+### 2.2. Bảng `serverless-payment-transactions` (Nhật ký giao dịch tài chính)
+Lưu trữ toàn bộ các giao dịch chuyển tiền đã cam kết thành công (`SUCCESS`). Hỗ trợ tra cứu chi tiết và truy vấn lịch sử hai chiều qua Global Secondary Indexes (GSIs):
 
-Bảng `Transactions` đóng vai trò kép: vừa là sổ cái ghi nhận các giao dịch thanh toán thành công, vừa là kho lưu trữ khóa Idempotency để chống gửi lặp request vĩnh viễn:
-
-### 2.1. Cấu trúc thuộc tính (Schema Definition)
-
-| Thuộc tính | Kiểu dữ liệu DynamoDB | Ràng buộc kỹ thuật | Ý nghĩa & Mục đích sử dụng |
+| Thuộc tính | Kiểu dữ liệu | Vai trò / Ràng buộc kỹ thuật | Ý nghĩa & Mục đích sử dụng |
 |---|:---:|---|---|
-| `userId` | `S` (String) | **Partition Key (PK)** | ID người dùng thực hiện giao dịch (lấy từ JWT `sub`). |
-| `idempotencyKey` | `S` (String) | **Sort Key (SK)** | Khóa chống lặp do client sinh (UUID v4, tối đa 36 ký tự). |
-| `transactionId` | `S` (String) | UUID v4 | Mã giao dịch hệ thống sinh ra ngẫu nhiên khi commit. |
-| `requestHash` | `S` (String) | Chuỗi hex 64 ký tự | Mã băm SHA-256 từ nội dung payload đã chuẩn hóa. |
-| `fromWalletId` | `S` (String) | Tham chiếu `Wallets` | Ví nguồn chuyển tiền đi. |
-| `toWalletId` | `S` (String) | Tham chiếu `Wallets` | Ví đích nhận tiền đến. |
-| `amount` | `N` (Number) | Số nguyên dương | Số tiền chuyển tính theo đơn vị VND. |
+| `transactionId` | `S` (String) | **Partition Key (PK)** | Mã định danh giao dịch duy nhất do hệ thống sinh (UUID v4). |
+| `userId` | `S` (String) | Bắt buộc | Định danh người gửi (lấy từ claim `sub` của JWT). |
+| `fromWalletId` | `S` (String) | GSI HASH Key (`FromWalletIndex`) | Mã ví nguồn chuyển tiền đi. |
+| `toWalletId` | `S` (String) | GSI HASH Key (`ToWalletIndex`) | Mã ví đích nhận tiền đến. |
+| `amount` | `N` (Number) | Bắt buộc, số nguyên dương | Số tiền chuyển (VND). |
 | `currency` | `S` (String) | Cố định `VND` | Loại tiền tệ của giao dịch. |
-| `status` | `S` (String) | `SUCCESS` | Trạng thái giao dịch (MVP chỉ lưu giao dịch đã commit). |
-| `createdAt` | `S` (String) | Chuẩn ISO 8601 UTC | Thời điểm giao dịch được ghi nhận thành công. |
+| `status` | `S` (String) | `SUCCESS` | Trạng thái giao dịch (chỉ ghi nhận khi commit thành công). |
+| `createdAt` | `S` (String) | Chuẩn ISO 8601 UTC | Thời điểm giao dịch hoàn thành. |
+| `timeKey` | `S` (String) | GSI RANGE Key (cả 2 GSIs) | Chuỗi kết hợp dạng `<createdAt>#<transactionId>` phục vụ sắp xếp thời gian. |
 
-### 2.2. Khóa chính phức hợp & Phân vùng dữ liệu
-- Bằng cách chọn cặp khóa `(userId, idempotencyKey)` làm Primary Key, hệ thống tự động cô lập không gian khóa chống lặp giữa các người dùng khác nhau. User B sử dụng cùng chuỗi UUID với User A sẽ không gây xung đột khóa.
-- Truy vấn kiểm tra chống lặp thực hiện bằng thao tác `GetItem` với tùy chọn `ConsistentRead=True`, bảo đảm đọc dữ liệu nhất quán mạnh tức thì mà không cần tạo chỉ mục phụ GSI tốn kém.
+#### Chỉ mục phụ toàn cục (Global Secondary Indexes - GSIs):
+Để phục vụ endpoint `GET /wallets/{walletId}/transactions` tra cứu lịch sử tiền đi và tiền đến có phân trang:
+1. **`FromWalletIndex`:**
+   - **Partition Key (HASH):** `fromWalletId`
+   - **Sort Key (RANGE):** `timeKey`
+   - **Projection:** `ALL`
+   - **Mục đích:** Truy vấn danh sách các giao dịch chuyển tiền đi (`OUTGOING`) của một ví theo thời gian giảm dần.
+2. **`ToWalletIndex`:**
+   - **Partition Key (HASH):** `toWalletId`
+   - **Sort Key (RANGE):** `timeKey`
+   - **Projection:** `ALL`
+   - **Mục đích:** Truy vấn danh sách các giao dịch nhận tiền đến (`INCOMING`) của một ví theo thời gian giảm dần.
+
+---
+
+### 2.3. Bảng `serverless-payment-idempotency` (Kho khóa chống trùng lặp)
+Lưu trữ thông tin khóa chống lặp yêu cầu nhằm bảo đảm không bao giờ trừ tiền hai lần khi client gửi lại request:
+
+| Thuộc tính | Kiểu dữ liệu | Vai trò / Ràng buộc kỹ thuật | Ý nghĩa & Mục đích sử dụng |
+|---|:---:|---|---|
+| `userId` | `S` (String) | **Partition Key (PK)** | Định danh người dùng (lấy từ JWT `sub`). Tách biệt không gian khóa giữa các user. |
+| `idempotencyKey` | `S` (String) | **Sort Key (SK)** | Khóa chống lặp do client sinh (UUID v4, tối đa 36 ký tự). |
+| `requestHash` | `S` (String) | Chuỗi hex SHA-256 (64 ký tự) | Mã băm chuẩn hóa 5 trường thông tin cốt lõi của request. |
+| `transactionId` | `S` (String) | UUID v4 | Mã giao dịch tương ứng đã thực hiện thành công. |
+| `fromWalletId` | `S` (String) | String | Ví nguồn của giao dịch đã lưu. |
+| `toWalletId` | `S` (String) | String | Ví đích của giao dịch đã lưu. |
+| `amount` | `N` (Number) | Number | Số tiền đã chuyển. |
+| `currency` | `S` (String) | Cố định `VND` | Tiền tệ. |
+| `status` | `S` (String) | `SUCCESS` | Trạng thái. |
+| `createdAt` | `S` (String) | Chuẩn ISO 8601 UTC | Thời điểm ghi nhận. |
 
 ---
 
 ## 3. Thuật toán chuẩn hóa Payload (Canonical Request & `requestHash`)
 
-Để phát hiện chính xác trường hợp client sử dụng lại `Idempotency-Key` nhưng gửi nội dung giao dịch khác, hệ thống áp dụng cơ chế băm dữ liệu chuẩn hóa:
-
-1. **Trích xuất các trường cốt lõi:** Chỉ trích xuất 5 trường quyết định tính chất giao dịch: `userId`, `fromWalletId`, `toWalletId`, `amount`, `currency`. Loại bỏ các trường biến động như thời gian gửi `timestamp`.
-2. **Sắp xếp khóa theo bảng chữ cái (Alphabetical Sort):** Đảm bảo thứ tự xuất hiện của các trường trong chuỗi JSON luôn cố định.
-3. **Mã hóa JSON thu gọn (Minified JSON):** Loại bỏ toàn bộ dấu cách thừa (`separators=(',', ':')`).
-4. **Băm SHA-256:** Tính toán chuỗi băm hex 64 ký tự.
+Để phát hiện chính xác trường hợp client sử dụng lại `Idempotency-Key` nhưng gửi số tiền hoặc ví khác, hệ thống áp dụng cơ chế băm dữ liệu chuẩn hóa:
+1. **Trích xuất 5 trường cốt lõi:** `userId`, `fromWalletId`, `toWalletId`, `amount`, `currency` (bỏ qua timestamp, headers biến động).
+2. **Sắp xếp khóa bảng chữ cái (`sort_keys=True`):** Đảm bảo thứ tự key JSON cố định.
+3. **Nén JSON thu gọn (`separators=(',', ':')`):** Loại bỏ toàn bộ khoảng trắng thừa.
+4. **Băm SHA-256:** Sinh mã băm 64 ký tự hex.
 
 ```python
 import hashlib
 import json
 
-def compute_request_hash(user_id: str, from_wallet: str, to_wallet: str, amount: int, currency: str = "VND") -> str:
-    canonical_data = {
-        "amount": amount,
-        "currency": currency,
-        "fromWalletId": from_wallet,
-        "toWalletId": to_wallet,
-        "userId": user_id
+def request_hash(user_id, src, dest, amount):
+    content = {
+        'userId': user_id,
+        'fromWalletId': src,
+        'toWalletId': dest,
+        'amount': amount,
+        'currency': 'VND'
     }
-    canonical_str = json.dumps(canonical_data, sort_keys=True, separators=(',', ':'))
-    return hashlib.sha256(canonical_str.encode('utf-8')).hexdigest()
+    canonical = json.dumps(content, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
+    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 ```
 
 ---
 
-## 4. Giao dịch nguyên tử với `TransactWriteItems`
+## 4. Giao dịch nguyên tử với `TransactWriteItems` (4 Thao tác)
 
-Mọi giao dịch chuyển tiền phải thực thi đồng thời cả 03 hành động trong một lệnh gọi `TransactWriteItems` duy nhất của DynamoDB:
+Mọi giao dịch chuyển tiền phải thực thi đồng thời cả **04 hành động nguyên tử** trong một lệnh gọi `TransactWriteItems` duy nhất của DynamoDB:
 
 ```mermaid
 flowchart TD
-    subgraph TransactWriteItems["TransactWriteItems (All-or-Nothing Atomicity)"]
-        Action1["1. Put Item vào Transactions\nCondition: attribute_not_exists(userId)"]
-        Action2["2. Update Ví nguồn (W001)\nSET balance = balance - amount\nCondition: balance >= amount AND ownerId = userId AND status = ACTIVE"]
-        Action3["3. Update Ví đích (W002)\nSET balance = balance + amount\nCondition: attribute_exists(walletId) AND status = ACTIVE"]
+    subgraph TransactWriteItems["TransactWriteItems (All-or-Nothing ACID Transaction)"]
+        Action1["1. Put Item vào Idempotency Table\nTable: serverless-payment-idempotency\nCondition: attribute_not_exists(userId)"]
+        Action2["2. Update Ví nguồn (W001)\nTable: serverless-payment-wallets\nSET balance = balance - amount, updatedAt = now\nCondition: attribute_exists(walletId) AND ownerId = actor AND status = ACTIVE AND currency = VND AND balance >= amount"]
+        Action3["3. Update Ví đích (W002)\nTable: serverless-payment-wallets\nSET balance = balance + amount, updatedAt = now\nCondition: attribute_exists(walletId) AND status = ACTIVE AND currency = VND"]
+        Action4["4. Put Item vào Transactions Table\nTable: serverless-payment-transactions\nItem: txRecord kèm timeKey\nCondition: attribute_not_exists(transactionId)"]
     end
 ```
 
-### 4.1. Chi tiết 03 thao tác trong transaction:
-
-1. **Ghi bản ghi giao dịch (Put Transactions):**
-   - Lưu trữ bản ghi giao dịch thành công.
-   - Điều kiện: `attribute_not_exists(userId)` $\rightarrow$ Ngăn chặn ghi đè nếu đã tồn tại bản ghi với cùng `(userId, idempotencyKey)`.
-
-2. **Khấu trừ số dư ví nguồn (Update Source Wallet):**
-   - Lệnh: `SET balance = balance - :amount, updatedAt = :now`
-   - Điều kiện (`ConditionExpression`):
+### Chi tiết 04 hành động trong Transaction:
+1. **Ghi nhận Idempotency (`Put` vào `serverless-payment-idempotency`):**
+   * Điều kiện: `attribute_not_exists(userId)` $\rightarrow$ Chặn đứng việc ghi đè nếu khóa này đã được sử dụng.
+2. **Khấu trừ số dư ví nguồn (`Update` vào `serverless-payment-wallets`):**
+   * Biểu thức: `SET balance = balance - :amt, updatedAt = :now`
+   * Điều kiện bảo vệ toàn vẹn:
      ```text
      attribute_exists(walletId) 
-     AND ownerId = :userId 
-     AND #status = :active 
+     AND ownerId = :actor 
+     AND #st = :active 
      AND currency = :vnd 
-     AND balance >= :amount
+     AND balance >= :amt
      ```
-
-3. **Cộng số dư ví đích (Update Destination Wallet):**
-   - Lệnh: `SET balance = balance + :amount, updatedAt = :now`
-   - Điều kiện (`ConditionExpression`):
-     ```text
-     attribute_exists(walletId) 
-     AND #status = :active 
-     AND currency = :vnd
-     ```
-   - *Lưu ý quan trọng:* Bắt buộc kiểm tra `attribute_exists(walletId)` vì mặc định lệnh `UpdateItem` của DynamoDB sẽ tự động tạo mới item nếu khóa chưa tồn tại.
+3. **Cộng số dư ví đích (`Update` vào `serverless-payment-wallets`):**
+   * Biểu thức: `SET balance = balance + :amt, updatedAt = :now`
+   * Điều kiện: `attribute_exists(walletId) AND #st = :active AND currency = :vnd`
+4. **Ghi nhật ký lịch sử (`Put` vào `serverless-payment-transactions`):**
+   * Lưu trữ bản ghi kèm `timeKey` phục vụ truy vấn GSI.
+   * Điều kiện: `attribute_not_exists(transactionId)`.
 
 ---
 
-## 5. Xử lý tranh chấp đồng thời & Khôi phục Idempotency
+## 5. Xử lý tranh chấp đồng thời & Replay logic
 
-1. **Bước 1 (Đọc kiểm tra trước):** Đọc nhất quán (`ConsistentRead=True`) bản ghi `(userId, idempotencyKey)` trên bảng `Transactions`.
-   - Nếu tìm thấy bản ghi cũ và `requestHash` trùng khớp $\rightarrow$ Trả về kết quả giao dịch trước đó kèm `replayed: true` (HTTP 200 OK), không trừ tiền lần hai.
-   - Nếu tìm thấy bản ghi cũ nhưng `requestHash` khác $\rightarrow$ Trả về lỗi `409 IDEMPOTENCY_KEY_CONFLICT`.
-2. **Bước 2 (Thực thi giao dịch mới):** Nếu chưa có bản ghi, thực hiện lệnh `TransactWriteItems`.
-3. **Bước 3 (Xử lý biệt lệ `TransactionCanceledException`):**
-   - Nếu do điều kiện số dư không đủ (`balance < amount`) $\rightarrow$ Trả về `409 INSUFFICIENT_FUNDS`. Không lưu bản ghi vào `Transactions`.
-   - Nếu do xung đột transaction đồng thời từ luồng khác $\rightarrow$ Đọc lại bảng `Transactions` để kiểm tra xem request song song đã kịp hoàn tất hay chưa, xử lý retry có giới hạn (exponential backoff).
+1. **Đọc kiểm tra Idempotency trước:**
+   - Dùng `ConsistentRead=True` đọc bảng `serverless-payment-idempotency` với Key `(userId, idempotencyKey)`.
+   - Nếu đã có bản ghi và `requestHash` trùng khớp $\rightarrow$ Trả về kết quả giao dịch cũ kèm `"replayed": true` (HTTP 200 OK), **không trừ tiền thêm lần nào**.
+   - Nếu đã có bản ghi nhưng `requestHash` khác $\rightarrow$ Báo lỗi `409 IDEMPOTENCY_KEY_CONFLICT`.
+2. **Thực thi `TransactWriteItems`:**
+   - Nếu có tranh chấp đồng thời (`TransactionConflict` / `TransactionInProgressException`) $\rightarrow$ Tự động đọc lại bảng idempotency để phát hiện yêu cầu đồng thời đã kịp commit thành công hay chưa, áp dụng lũy thừa thời gian chờ (exponential backoff retry tối đa 4 lần).

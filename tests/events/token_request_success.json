@@ -1,0 +1,14 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /auth/token",
+  "rawPath": "/auth/token",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "demo-token-req-001"
+  },
+  "isBase64Encoded": false,
+  "body": "{\"userId\":\"user-a\",\"demoCode\":\"spg-demo-code-2026\"}"
+}
+

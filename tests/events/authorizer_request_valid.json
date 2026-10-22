@@ -1,0 +1,17 @@
+{
+  "type": "REQUEST",
+  "version": "2.0",
+  "routeKey": "POST /transfers",
+  "rawPath": "/transfers",
+  "headers": {
+    "authorization": "Bearer <REPLACE_WITH_ACTUAL_JWT_TOKEN>"
+  },
+  "requestContext": {
+    "requestId": "demo-auth-req-001",
+    "http": {
+      "method": "POST",
+      "path": "/transfers"
+    }
+  }
+}
+

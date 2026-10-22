@@ -1,0 +1,17 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /transactions/{transactionId}",
+  "rawPath": "/transactions/REPLACE_WITH_TRANSACTION_ID",
+  "pathParameters": {
+    "transactionId": "REPLACE_WITH_TRANSACTION_ID"
+  },
+  "requestContext": {
+    "requestId": "demo-tx-get-001",
+    "authorizer": {
+      "lambda": {
+        "userId": "user-a"
+      }
+    }
+  }
+}
+

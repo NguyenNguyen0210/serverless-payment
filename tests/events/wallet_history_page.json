@@ -1,0 +1,20 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /wallets/{walletId}/transactions",
+  "rawPath": "/wallets/W001/transactions",
+  "pathParameters": {
+    "walletId": "W001"
+  },
+  "queryStringParameters": {
+    "limit": "10"
+  },
+  "requestContext": {
+    "requestId": "demo-wallet-history-001",
+    "authorizer": {
+      "lambda": {
+        "userId": "user-a"
+      }
+    }
+  }
+}
+

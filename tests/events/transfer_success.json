@@ -1,11 +1,19 @@
 {
   "version": "2.0",
   "routeKey": "POST /transfers",
-  "headers": {"idempotency-key": "4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1"},
+  "rawPath": "/transfers",
+  "headers": {
+    "content-type": "application/json",
+    "idempotency-key": "550e8400-e29b-41d4-a716-446655440000"
+  },
   "requestContext": {
-    "requestId": "local-console-demo-request",
-    "authorizer": {"lambda": {"userId": "user-a"}}
+    "requestId": "test-request-001",
+    "authorizer": {
+      "lambda": {
+        "userId": "user-a"
+      }
+    }
   },
   "isBase64Encoded": false,
-  "body": "{\"fromWalletId\":\"W001\",\"toWalletId\":\"W002\",\"amount\":30000}"
+  "body": "{\"fromWalletId\":\"W001\",\"toWalletId\":\"W002\",\"amount\":1000}"
 }

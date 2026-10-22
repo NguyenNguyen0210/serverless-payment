@@ -1,128 +1,272 @@
-# ĐẶC TẢ GIAO DIỆN LẬP TRÌNH ỨNG DỤNG (API SPECIFICATION & CONTRACT)
+# ĐẶC TẢ HỢP ĐỒNG API & HƯỚNG DẪN KIỂM THỬ (API CONTRACT & TESTING GUIDE)
 
 > **Học phần:** Cloud Computing – Đợt 1, Năm học 2026–2027  
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
-> **Người phụ trách:** Vũ Minh Đức  
-> **Phối hợp & Rà soát:** Nguyễn Nguyên  
-> **AWS Region:** `us-east-1` · **Phiên bản:** 1.0 (Design)  
+> **Người thực hiện:** Vũ Minh Đức & Nguyễn Nguyên  
+> **AWS Region:** `us-east-1` · **Nền tảng:** Amazon API Gateway HTTP API v2  
+> **Phiên bản:** 2.0 (Toàn bộ 05 Endpoints & Tích hợp cURL mẫu)  
 
-## Quy ước API
+---
 
-- HTTPS; HTTP API ở `us-east-1`; base URL chỉ được biết sau khi triển khai.
-- `Content-Type: application/json`; tiền VND lưu số nguyên; không nhận số thực, chuỗi, boolean làm `amount`.
-- Mỗi `POST /transfers` yêu cầu `Authorization: Bearer <JWT>` và `Idempotency-Key` (khuyến nghị UUID v4 của client).
-- `userId` lấy từ `sub` của JWT, không lấy từ body do client cung cấp.
+## 1. Quy ước chung của hệ thống API
 
-## POST /token — cấp JWT demo
+- **Giao thức:** HTTPS qua Amazon API Gateway HTTP API v2 (us-east-1).
+- **Định dạng dữ liệu:** `Content-Type: application/json; charset=utf-8`.
+- **Đơn vị tiền tệ:** `VND`, lưu trữ dưới dạng **số nguyên dương** (`integer`). Tuyệt đối từ chối `float`, `boolean` hoặc `string`.
+- **Bảo mật danh tính (Zero-Trust):** Các endpoint được bảo vệ đều phải gửi header `Authorization: Bearer <JWT>`. Định danh người dùng luôn được trích xuất an toàn từ `context.userId` (từ claim `sub` do Lambda Authorizer giải mã), **không bao giờ tin cậy `userId` do client tự khai trong body**.
 
-Không yêu cầu JWT sẵn, nhưng **bắt buộc kiểm tra mã demo bí mật** và allowlist user trước khi cấp token; không được cấp JWT tùy ý theo userId client khai.
-
-Request minh họa:
-
-```json
-{"userId":"user-a","demoCode":"spg-demo-code-2026"}
+```bash
+# Thiết lập biến môi trường để chạy thử nghiệm các lệnh cURL
+export API_URL="https://abcdef1234.execute-api.us-east-1.amazonaws.com"
+export DEMO_CODE="spg-demo-code-2026"
 ```
 
-Response 200:
+---
 
-```json
+## 2. Chi tiết 05 Endpoints
+
+### 2.1. Endpoint 1: Cấp JWT thử nghiệm (`POST /auth/token`)
+- **Phân quyền:** Public (Không cần JWT, kiểm tra bảo mật phía server).
+- **Cơ chế an toàn:** So khớp `demoCode` với giá trị bí mật trong AWS Secrets Manager bằng `hmac.compare_digest` chống timing attack; kiểm tra allowlist (`user-a`, `user-b`).
+- **Throttling:** 2 RPS, Burst: 5 (ngăn chặn brute-force).
+
+#### Request:
+```http
+POST /auth/token HTTP/1.1
+Content-Type: application/json
+
 {
-  "accessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWEiLCJpc3MiOiJzZXJ2ZXJsZXNzLXBheW1lbnQtZGVtbyIsImF1ZCI6InBheW1lbnQtYXBpIiwiZXhwIjoxNzkxNjc3NzAwLCJpYXQiOjE3OTE2NzY4MDB9.sample_signature_hash",
-  "tokenType":"Bearer",
-  "expiresIn":900
+  "userId": "user-a",
+  "demoCode": "spg-demo-code-2026"
 }
 ```
 
-Lỗi: `400 INVALID_REQUEST`, `401 INVALID_CREDENTIALS`, `429 TOO_MANY_REQUESTS` nếu áp dụng throttling.
+#### Response thành công (`HTTP 200 OK`):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWEiLCJpc3MiOiJzZXJ2ZXJsZXNzLXBheW1lbnQtZGVtbyIsImF1ZCI6InBheW1lbnQtYXBpIiwiZXhwIjoxNzkxNjc3NzAwLCJpYXQiOjE3OTE2NzY4MDB9.signature",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+```
 
-## POST /transfers — chuyển tiền
+#### Lệnh cURL thực thi:
+```bash
+curl -s -X POST "$API_URL/auth/token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "user-a",
+    "demoCode": "spg-demo-code-2026"
+  }' | jq .
 
-Request minh họa:
+# Lưu token nhận được vào biến môi trường
+export JWT_TOKEN="<DÁN_ACCESS_TOKEN_VÀO_ĐÂY>"
+```
 
+---
+
+### 2.2. Endpoint 2: Chuyển tiền nguyên tử (`POST /transfers`)
+- **Phân quyền:** Protected (Bắt buộc Lambda Authorizer).
+- **Header bắt buộc:** `Authorization: Bearer <token>`, `Idempotency-Key: <uuid-v4>`.
+- **Cơ chế an toàn:** Kiểm tra số dư, trừ tiền ví nguồn, cộng tiền ví đích, ghi nhật ký giao dịch và khóa chống lặp trong một lệnh `TransactWriteItems` duy nhất (4 actions nguyên tử).
+- **Throttling:** 10 RPS, Burst: 20.
+
+#### Request:
 ```http
-POST /transfers
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+POST /transfers HTTP/1.1
+Authorization: Bearer <JWT_TOKEN>
 Idempotency-Key: 4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1
 Content-Type: application/json
-```
 
-```json
-{"fromWalletId":"W001","toWalletId":"W002","amount":30000}
-```
-
-Response 201 (thành công lần đầu):
-
-```json
 {
-  "transactionId":"txn-example-001",
-  "fromWalletId":"W001",
-  "toWalletId":"W002",
-  "amount":30000,
-  "currency":"VND",
-  "status":"SUCCESS",
-  "replayed":false,
-  "createdAt":"2026-10-11T00:00:00Z"
+  "fromWalletId": "W001",
+  "toWalletId": "W002",
+  "amount": 30000
 }
 ```
 
-Response 200 (gửi lại cùng key, cùng dữ liệu): cùng `transactionId`, `replayed=true`, không cập nhật lại số dư.
-
-Response 409 (cùng key nhưng payload khác):
-
+#### Response lần đầu thành công (`HTTP 201 Created`):
 ```json
-{"error":{"code":"IDEMPOTENCY_KEY_CONFLICT","message":"Key already used for another request."}}
+{
+  "transactionId": "b1a7d65c-3f24-4f91-88bc-4a0b2d561234",
+  "fromWalletId": "W001",
+  "toWalletId": "W002",
+  "amount": 30000,
+  "currency": "VND",
+  "status": "SUCCESS",
+  "replayed": false,
+  "createdAt": "2026-10-22T03:36:22.123456Z"
+}
 ```
 
-Response 409 (không đủ tiền):
-
+#### Response khi gửi lại cùng `Idempotency-Key` (`HTTP 200 OK` - Idempotent Replay):
 ```json
-{"error":{"code":"INSUFFICIENT_FUNDS","message":"Insufficient balance."}}
+{
+  "transactionId": "b1a7d65c-3f24-4f91-88bc-4a0b2d561234",
+  "fromWalletId": "W001",
+  "toWalletId": "W002",
+  "amount": 30000,
+  "currency": "VND",
+  "status": "SUCCESS",
+  "replayed": true,
+  "createdAt": "2026-10-22T03:36:22.123456Z"
+}
 ```
 
-## Danh mục mã lỗi và trạng thái HTTP (HTTP Status Codes)
+#### Lệnh cURL thực thi:
+```bash
+export IDEMPOTENCY_KEY="4c7d3e65-1f10-47c7-b6f3-e99c91ba00d1"
 
-| HTTP | Ý nghĩa |
-|---|---|
-| 200 | Replay của giao dịch thành công (cùng key, cùng payload) |
-| 201 | Giao dịch thực thi thành công lần đầu |
-| 400 | Body, amount, walletIds hoặc Idempotency-Key không hợp lệ |
-| 401 | Thiếu Authorization identity source |
-| 403 | JWT bị Authorizer từ chối (`isAuthorized=false`) hoặc không phải chủ ví nguồn |
-| 404 | Ví nguồn hoặc ví đích không tồn tại |
-| 409 | Không đủ số dư / ví bị khóa / idempotency key xung đột |
-| 429 | Vượt quá hạn mức lưu lượng (Rate Limiting / Throttling từ API Gateway) |
-| 503 | Xung đột DynamoDB tạm thời sau khi đã retry có giới hạn |
-| 500 | Lỗi máy chủ không mong đợi (Tự động chuyển tiếp vào Amazon SQS DLQ) |
+curl -s -X POST "$API_URL/transfers" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromWalletId": "W001",
+    "toWalletId": "W002",
+    "amount": 30000
+  }' | jq .
+```
 
-Với HTTP API Lambda Authorizer `REQUEST` trả simple response `isAuthorized=false`, API Gateway tự động trả **403 Forbidden**; khi thiếu identity source, API Gateway trả **401 Unauthorized**.
+---
 
-## GET /transactions/{id} — Endpoint mở rộng
+### 2.3. Endpoint 3: Tra cứu thông tin & Số dư ví (`GET /wallets/{walletId}`)
+- **Phân quyền:** Protected (Bắt buộc Lambda Authorizer).
+- **Kiểm soát quyền truy cập:** Chỉ chủ sở hữu ví (`ownerId == context.userId`) mới được phép xem thông tin ví của mình. Nếu người khác truy cập sẽ bị từ chối với mã lỗi `403 WALLET_FORBIDDEN`.
 
-Endpoint tra cứu lịch sử giao dịch theo `transactionId`. Chức năng này được định nghĩa ở dạng mở rộng và chỉ được kích hoạt sau khi nhóm hoàn tất thiết kế Global Secondary Index (GSI) `transactionId-index` trên DynamoDB ở các tuần tiếp theo.
+#### Request:
+```http
+GET /wallets/W001 HTTP/1.1
+Authorization: Bearer <JWT_TOKEN>
+```
 
-## Cơ chế xử lý Idempotency & Ràng buộc giao dịch
+#### Response thành công (`HTTP 200 OK`):
+```json
+{
+  "walletId": "W001",
+  "ownerId": "user-a",
+  "balance": 70000,
+  "currency": "VND",
+  "status": "ACTIVE",
+  "createdAt": "2026-10-22T00:00:00Z",
+  "updatedAt": "2026-10-22T03:36:22Z"
+}
+```
 
-- **Định dạng Idempotency-Key:** Bắt buộc gửi qua HTTP Header, định dạng chuẩn UUID v4 (36 ký tự).
-- **Ràng buộc số tiền (`amount`):** Phải là số nguyên dương VND (`amount > 0`). Trong Python Lambda, kiểm tra chặt chẽ `isinstance(amount, int) and not isinstance(amount, bool)` để ngăn chặn việc ép kiểu boolean.
-- **Ràng buộc tài khoản ví:** `fromWalletId` và `toWalletId` phải là chuỗi hợp lệ, không rỗng và khác nhau.
-- **Sinh mã giao dịch (`transactionId`):** Được sinh ngẫu nhiên từ server (UUID v4), bảo đảm tính duy nhất tuyệt đối.
-- **Phạm vi bảo vệ Idempotency:** Trong phiên bản MVP, bảng `Transactions` chỉ lưu trữ các giao dịch đã commit thành công (`SUCCESS`). Nếu giao dịch bị hủy do thiếu số dư hoặc sai thông tin ví, khóa Idempotency không bị chiếm giữ, cho phép client gửi lại yêu cầu cùng key sau khi đã khắc phục điều kiện. Khi giao dịch đã hoàn tất, việc gửi lại cùng key và payload sẽ trả về kết quả cũ kèm `replayed: true` (HTTP 200 OK), còn gửi khác payload sẽ bị từ chối với lỗi `409 IDEMPOTENCY_KEY_CONFLICT`.
+#### Lệnh cURL thực thi:
+```bash
+# Tra cứu ví chính chủ (HTTP 200)
+curl -s -X GET "$API_URL/wallets/W001" \
+  -H "Authorization: Bearer $JWT_TOKEN" | jq .
 
-## Cơ chế Kiểm soát lưu lượng (Rate Limiting & Throttling)
+# Thử nghiệm xem ví người khác (HTTP 403 Forbidden)
+curl -s -X GET "$API_URL/wallets/W002" \
+  -H "Authorization: Bearer $JWT_TOKEN" | jq .
+```
 
-Nhằm bảo vệ hệ thống khỏi tấn công từ chối dịch vụ (DoS) và cạn kiệt tài nguyên xử lý trên Learner Lab, API Gateway được cấu hình chính sách kiểm soát lưu lượng tại tầng Ingress:
+---
 
-- **Hạn mức Route `/token`:** Rate Limit = 2 RPS, Burst Limit = 5 requests (ngăn chặn dò quét mã demo).
-- **Hạn mức Route `/transfers`:** Rate Limit = 10 RPS, Burst Limit = 20 requests.
-- **Phản hồi lỗi 429:** Khi vượt ngưỡng, API Gateway tự động trả về:
-  ```json
-  {
-    "message": "Too Many Requests"
+### 2.4. Endpoint 4: Tra cứu chi tiết giao dịch (`GET /transactions/{transactionId}`)
+- **Phân quyền:** Protected (Bắt buộc Lambda Authorizer).
+- **Kiểm soát quyền truy cập:** Chỉ các bên tham gia giao dịch (chủ ví nguồn chuyển đi HOẶC chủ ví đích nhận đến) mới có quyền tra cứu. Người ngoài truy cập sẽ bị từ chối với lỗi `403 TRANSACTION_FORBIDDEN`.
+
+#### Request:
+```http
+GET /transactions/b1a7d65c-3f24-4f91-88bc-4a0b2d561234 HTTP/1.1
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Response thành công (`HTTP 200 OK`):
+```json
+{
+  "transactionId": "b1a7d65c-3f24-4f91-88bc-4a0b2d561234",
+  "fromWalletId": "W001",
+  "toWalletId": "W002",
+  "amount": 30000,
+  "currency": "VND",
+  "status": "SUCCESS",
+  "createdAt": "2026-10-22T03:36:22.123456Z"
+}
+```
+
+#### Lệnh cURL thực thi:
+```bash
+export TX_ID="b1a7d65c-3f24-4f91-88bc-4a0b2d561234"
+
+curl -s -X GET "$API_URL/transactions/$TX_ID" \
+  -H "Authorization: Bearer $JWT_TOKEN" | jq .
+```
+
+---
+
+### 2.5. Endpoint 5: Lịch sử giao dịch ví có phân trang (`GET /wallets/{walletId}/transactions`)
+- **Phân quyền:** Protected (Bắt buộc Lambda Authorizer, chỉ chủ ví được xem).
+- **Tham số truy vấn (Query Parameters):**
+  - `limit`: Số bản ghi tối đa trả về trên mỗi trang (từ 1 đến 50, mặc định: 10).
+  - `nextToken`: Chuỗi mã hóa base64URL an toàn chứa con trỏ phân trang thời gian (`timeKey`). Nếu là `null` thì đã ở trang cuối.
+- **Cơ chế kỹ thuật:** Truy vấn song song cả 2 GSIs (`FromWalletIndex` và `ToWalletIndex`), gộp và sắp xếp theo `timeKey` giảm dần (mới nhất lên đầu), gắn nhãn rõ ràng:
+  - `type`: `"OUTGOING"` (Chuyển tiền đi) hoặc `"INCOMING"` (Nhận tiền đến).
+  - `counterpartyWalletId`: Mã ví đối tác trong giao dịch.
+
+#### Request:
+```http
+GET /wallets/W001/transactions?limit=10 HTTP/1.1
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Response thành công (`HTTP 200 OK`):
+```json
+{
+  "walletId": "W001",
+  "items": [
+    {
+      "transactionId": "b1a7d65c-3f24-4f91-88bc-4a0b2d561234",
+      "type": "OUTGOING",
+      "counterpartyWalletId": "W002",
+      "amount": 30000,
+      "currency": "VND",
+      "status": "SUCCESS",
+      "createdAt": "2026-10-22T03:36:22.123456Z"
+    }
+  ],
+  "nextToken": "eyJ2IjoxLCJ3IjoiVzAwMSIsInUiOiJ1c2VyLWEiLCJiZWZvcmUiOiIyMDI2LTEwLTIyVDAzOjM2OjIyLjEyMzQ1NlojdHgtMTIzIn0"
+}
+```
+
+#### Lệnh cURL thực thi:
+```bash
+# Lấy trang đầu tiên
+curl -s -X GET "$API_URL/wallets/W001/transactions?limit=10" \
+  -H "Authorization: Bearer $JWT_TOKEN" | jq .
+
+# Lấy trang kế tiếp bằng nextToken
+curl -s -X GET "$API_URL/wallets/W001/transactions?limit=10&nextToken=<NEXT_TOKEN_TỪ_RESPONSE_TRƯỚC>" \
+  -H "Authorization: Bearer $JWT_TOKEN" | jq .
+```
+
+---
+
+## 3. Bảng mã trạng thái HTTP & Chuẩn hóa phản hồi lỗi
+
+Mọi phản hồi lỗi từ hệ thống đều tuân thủ cấu trúc JSON thống nhất:
+```json
+{
+  "error": {
+    "code": "ERROR_CODE_STRING",
+    "message": "Human readable description."
   }
-  ```
-  Kèm theo HTTP Response Header `Retry-After: <số giây>` yêu cầu client tạm dừng trước khi thử lại. Lỗi này được chặn trực tiếp tại API Gateway, không phát sinh chi phí thực thi Lambda.
+}
+```
 
-## Cơ chế Xử lý sự cố ngoại lệ & Hàng đợi chết (Dead Letter Queue - DLQ)
-
-- Khi Transfer Lambda gặp sự cố ngoại lệ chưa xử lý (unhandled runtime exception, function timeout, hoặc lỗi kết nối DynamoDB nghiêm trọng dẫn tới mã lỗi 500), payload của request lỗi được tự động đẩy vào **Amazon SQS Dead Letter Queue (`serverless-payment-dlq`)**.
-- Bản tin trong DLQ lưu trữ đầy đủ thông tin: `timestamp`, `requestId`, `requestPayload`, và mã lỗi ngoại lệ, hỗ trợ quản trị viên đối soát thủ công và khôi phục trạng thái ví mà không làm thất thoát dữ liệu giao dịch của người dùng.
+| HTTP Status | Error Code | Ý nghĩa & Ngữ cảnh phát sinh |
+|:---:|---|---|
+| **200 OK** | *(Không có)* | Replay giao dịch thành công hoặc truy vấn dữ liệu thành công |
+| **201 Created** | *(Không có)* | Giao dịch chuyển tiền lần đầu được ghi nhận thành công |
+| **400 Bad Request** | `INVALID_REQUEST`<br>`INVALID_AMOUNT`<br>`INVALID_WALLET`<br>`INVALID_IDEMPOTENCY_KEY`<br>`INVALID_PAGINATION` | Sai cú pháp JSON, số tiền không hợp lệ ($\le 0$ hoặc float/bool), ví nguồn trùng ví đích, key không phải UUID v4, hoặc tham số phân trang sai |
+| **401 Unauthorized** | `UNAUTHORIZED`<br>`INVALID_CREDENTIALS` | Thiếu Authorization header hoặc mã `demoCode` không đúng |
+| **403 Forbidden** | `WALLET_FORBIDDEN`<br>`TRANSACTION_FORBIDDEN` | JWT bị Authorizer từ chối, caller không sở hữu ví thao tác, hoặc không có quyền xem giao dịch người khác |
+| **404 Not Found** | `WALLET_NOT_FOUND`<br>`TRANSACTION_NOT_FOUND`<br>`ROUTE_NOT_FOUND` | Ví nguồn/đích không tồn tại, mã giao dịch không có trong hệ thống, hoặc sai route URL |
+| **409 Conflict** | `INSUFFICIENT_FUNDS`<br>`WALLET_INACTIVE`<br>`IDEMPOTENCY_KEY_CONFLICT`<br>`TRANSACTION_CONFLICT` | Số dư không đủ, ví bị khóa (`SUSPENDED`), gửi trùng key nhưng sửa đổi body chuyển tiền, hoặc xung đột transaction đồng thời |
+| **429 Too Many Requests** | `TOO_MANY_REQUESTS` | Vượt ngưỡng Rate Limiting tại tầng Ingress của API Gateway |
+| **500 Internal Error** | `INTERNAL_ERROR` | Lỗi máy chủ không mong đợi (Tự động gửi cảnh báo vào Amazon SQS DLQ) |
+| **503 Service Unavailable**| `TRANSACTION_CONFLICT` | Tranh chấp DynamoDB tạm thời sau 4 lần retry có backoff |
