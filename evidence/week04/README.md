@@ -9,6 +9,11 @@
 
 ---
 
+## 🎥 Video Demo nghiệm thu cuối kỳ
+- **Liên kết Google Drive:** [Video Demo Cổng thanh toán Serverless Payment](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
+
+---
+
 ## 1. Cơ cấu phân chia minh chứng theo thành viên
 
 Để bảo đảm tính minh bạch và ghi nhận chính xác khối lượng đóng góp cá nhân (tối thiểu 8 giờ/thành viên/tuần), thư mục minh chứng Tuần 4 được tổ chức phân tách theo từng thành viên:

@@ -13,6 +13,8 @@ Hệ thống cổng thanh toán giả lập không máy chủ (Serverless Simula
   - **Vũ Minh Đức** – Phân tích nghiệp vụ, Kiến trúc, Thuật toán & Kiểm thử
   - **Nguyễn Nguyên** – Môi trường AWS, IAM, Triển khai hạ tầng, Quản trị tài nguyên & Git
 - **GitHub Repository:** [https://github.com/NguyenNguyen0210/serverless-payment](https://github.com/NguyenNguyen0210/serverless-payment)
+- **Video Demo nghiệm thu (Google Drive):** [https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
+- **Báo cáo tiến độ Tuần 4 & Tổng kết:** [docs/reports/week04-report.md](docs/reports/week04-report.md)
 - **Môi trường triển khai:** AWS Academy Learner Lab (Vocareum)
 - **AWS Region thống nhất:** `us-east-1` (US East - N. Virginia)
 - **IAM Execution Role:** `arn:aws:iam::<ACCOUNT_ID>:role/LabRole`
@@ -245,6 +247,8 @@ Tài liệu được tinh gọn, hợp nhất để tránh phân mảnh:
 - 📋 **Quản lý & Nhật ký:**
   - [Nhật ký công việc nhóm chi tiết](docs/worklog.md)
   - [Thông tin kho lưu trữ GitHub & Chỉ mục tài liệu](docs/repository.md)
+  - [Báo cáo tiến độ Tuần 4 & Tổng kết nghiệm thu đồ án](docs/reports/week04-report.md)
+  - [Thư mục Video Demo nghiệm thu (Google Drive)](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
 - 📐 **Kiến trúc & Đặc tả API:**
   - [Kiến trúc hệ thống, Xác thực JWT, 4-action ACID, Rate Limit, DLQ & ADRs (ADR-01 -> ADR-14)](design/architecture.md)
   - [Đặc tả máy đọc được OpenAPI 3.0 (5 Endpoints)](design/openapi.yaml)

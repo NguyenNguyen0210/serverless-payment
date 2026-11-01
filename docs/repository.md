@@ -15,6 +15,8 @@
   git clone https://github.com/NguyenNguyen0210/serverless-payment.git
   ```
 - **Nhánh chính (Default Branch):** `main`
+- **Video Demo nghiệm thu (Google Drive):** [https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
+- **Báo cáo tiến độ Tuần 4 & Nghiệm thu:** [docs/reports/week04-report.md](reports/week04-report.md)
 
 ---
 
