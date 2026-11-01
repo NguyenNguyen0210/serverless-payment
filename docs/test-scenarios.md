@@ -107,10 +107,10 @@ Hệ thống hỗ trợ kiểm thử linh hoạt qua hai phương pháp:
 Mỗi endpoint trong số 5 API endpoints đều được chuẩn hóa cú pháp cURL mẫu chi tiết tại [`docs/api-contract.md`](api-contract.md). Người thực hiện có thể sao chép trực tiếp lệnh cURL chạy trên Command Prompt, PowerShell hoặc nhập vào Postman.
 
 ### Phương pháp 2: Kiểm thử Unit Tests tự động
-Bộ 15 unit tests tự động (`tests/test_auth.py`, `tests/test_transfer.py`) kiểm tra trọn vẹn logic chữ ký JWT, kiểm tra quyền sở hữu ví và tính nguyên tử của giao dịch.
+Bộ 56 unit tests tự động (`tests/test_auth.py`: 16 tests, `tests/test_transfer.py`: 23 tests, `tests/test_query.py`: 17 tests) kiểm tra trọn vẹn logic chữ ký JWT, kiểm tra quyền sở hữu ví, tính nguyên tử của giao dịch, chống lặp Idempotency, tranh chấp đồng thời và phân trang cursor.
 
 ```bash
-# Thực thi toàn bộ bộ Unit Tests
+# Thực thi toàn bộ 56 Unit Tests
 python -m unittest discover -s tests -v
 ```
 
