@@ -4,7 +4,7 @@
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Người phụ trách:** Vũ Minh Đức  
 > **Phối hợp & Rà soát:** Nguyễn Nguyên  
-> **AWS Region:** `us-east-1` · **Phiên bản:** 2.0 (Kiến trúc 3 bảng DynamoDB & 5 Endpoints)  
+> **AWS Region:** `us-east-1`  
 
 ---
 

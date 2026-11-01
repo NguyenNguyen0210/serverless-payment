@@ -4,7 +4,6 @@
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Giảng viên hướng dẫn (GVHD):** ThS. Huỳnh Xuân Phụng  
 > **Nhóm thực hiện:** Serverless (Vũ Minh Đức & Nguyễn Nguyên)  
-> **Phiên bản:** 4.0 (Hoàn thiện nghiệm thu 4 tuần: CSDL 3 bảng DynamoDB, 5 Standalone Lambdas & 5 API Endpoints)  
 
 ---
 

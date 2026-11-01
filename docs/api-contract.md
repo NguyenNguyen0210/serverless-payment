@@ -4,7 +4,6 @@
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Người thực hiện:** Vũ Minh Đức & Nguyễn Nguyên  
 > **AWS Region:** `us-east-1` · **Nền tảng:** Amazon API Gateway HTTP API v2  
-> **Phiên bản:** 2.0 (Toàn bộ 05 Endpoints & Tích hợp cURL mẫu)  
 
 ---
 

@@ -5,7 +5,6 @@
 > **GVHD:** ThS. Huỳnh Xuân Phụng  
 > **Nhóm thực hiện:** Serverless (Vũ Minh Đức & Nguyễn Nguyên)  
 > **Môi trường:** AWS Academy Learner Lab (`us-east-1`)  
-> **Phiên bản:** 2.0 (Kiến trúc 3 bảng DynamoDB & 5 API Endpoints)  
 
 ---
 

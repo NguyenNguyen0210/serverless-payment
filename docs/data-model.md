@@ -5,7 +5,6 @@
 > **Người thực hiện:** Vũ Minh Đức  
 > **Phối hợp thực hiện:** Nguyễn Nguyên  
 > **AWS Region:** `us-east-1` · **Chế độ Capacity:** On-Demand (Pay-Per-Request)  
-> **Phiên bản:** 2.0 (Kiến trúc 3 bảng chuyên biệt & 2 GSIs)  
 
 ---
 

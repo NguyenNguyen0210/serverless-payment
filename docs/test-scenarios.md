@@ -5,7 +5,6 @@
 > **Người phụ trách:** Vũ Minh Đức  
 > **Phối hợp thực hiện:** Nguyễn Nguyên  
 > **Môi trường thực thi:** AWS Academy Learner Lab (`us-east-1`)  
-> **Phiên bản:** 2.0 (Kiến trúc 3 bảng DynamoDB & 5 Endpoints)  
 
 ---
 
