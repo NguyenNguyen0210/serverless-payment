@@ -4,7 +4,7 @@
 > **Dự án:** Cổng thanh toán giả lập không máy chủ (`serverless-payment`)  
 > **Nhóm thực hiện:** Serverless (02 thành viên: Vũ Minh Đức & Nguyễn Nguyên)  
 > **Nền tảng:** AWS Academy Learner Lab (Vocareum) · **Region:** `us-east-1`  
-> **Tài khoản minh chứng:** Nguyễn Nguyên `930162821234` · Vũ Minh Đức `892973274103`  
+> **Tài khoản minh chứng:** Nguyễn Nguyên `930162821234` · Vũ Minh Đức `487906062447`
 > **Tuần báo cáo:** Tuần 4 (26/10/2026 – 01/11/2026) – Kiểm thử tổng thể, bảo mật, độ tin cậy, giám sát, chi phí & nghiệm thu cuối kỳ.  
 
 ---
@@ -18,10 +18,12 @@ evidence/week04/
 ├── README.md               # Danh mục minh chứng tổng hợp Tuần 4 (tệp hiện tại)
 ├── nguyen/                 # Minh chứng của Nguyễn Nguyên (19 ảnh)
 │   ├── README.md
+│   ├── CLOUDSHELL-COMMANDS.md
 │   └── B4-01 -> B4-19...   # Toàn bộ ảnh chụp màn hình AWS Console, CloudShell CLI & Postman
-└── duc/                    # Minh chứng của Vũ Minh Đức (kiểm thử transaction concurrency, rollback, đối soát)
+└── duc/                    # Minh chứng của Vũ Minh Đức (19 ảnh)
     ├── README.md
-    └── A4-01 -> A4-xx...
+    ├── CLOUDSHELL-COMMANDS.md
+    └── A4-01 -> A4-19...   # AWS Console, CloudShell CLI & Postman
 ```
 
 ---
@@ -54,7 +56,34 @@ evidence/week04/
 
 ---
 
+### 📁 Thư mục [`duc/`](duc/README.md) – Vũ Minh Đức (19 ảnh minh chứng)
+
+Đã hoàn thành kiểm thử tích hợp 5 endpoints, phân quyền JWT, giao dịch nguyên tử và idempotency, concurrency, đối soát DynamoDB, cấu hình Secrets Manager/IAM, CloudWatch, SQS DLQ và thử tải hai routes API:
+
+- **`A4-01`:** [`A4-01-aws-environment-and-resources.png`](duc/A4-01-aws-environment-and-resources.png) – Xác thực Account `487906062447`, Region `us-east-1`, Lambda, DynamoDB và HTTP API.
+- **`A4-02`:** [`A4-02-api-gateway-five-routes.png`](duc/A4-02-api-gateway-five-routes.png) – Xác nhận đủ 5 API routes và cấu hình authorizer.
+- **`A4-03`:** [`A4-03-api-auth-token-success.png`](duc/A4-03-api-auth-token-success.png) – Cấp JWT thành công qua `POST /auth/token`.
+- **`A4-04`:** [`A4-04-api-wallet-query-owner-success.png`](duc/A4-04-api-wallet-query-owner-success.png) – Tra cứu ví `W001` chính chủ thành công.
+- **`A4-05`:** [`A4-05-api-wallet-query-forbidden.png`](duc/A4-05-api-wallet-query-forbidden.png) – Chặn truy cập ví `W002` của người khác với HTTP 403.
+- **`A4-06`:** [`A4-06-api-transfer-success.png`](duc/A4-06-api-transfer-success.png) – Chuyển tiền thành công, HTTP 201 và `replayed: false`.
+- **`A4-07`:** [`A4-07-api-transaction-query-detail.png`](duc/A4-07-api-transaction-query-detail.png) – Tra cứu chi tiết giao dịch theo ID.
+- **`A4-08`:** [`A4-08-api-wallet-transactions-history.png`](duc/A4-08-api-wallet-transactions-history.png) – Gọi API lịch sử ví; ảnh ghi nhận response rỗng tại thời điểm kiểm thử.
+- **`A4-09`:** [`A4-09-dynamodb-wallets-balance-reconciliation.png`](duc/A4-09-dynamodb-wallets-balance-reconciliation.png) – Đối soát số dư ví trên DynamoDB.
+- **`A4-10`:** [`A4-10-api-idempotency-replay-success.png`](duc/A4-10-api-idempotency-replay-success.png) – Xác nhận idempotent replay với `replayed: true`.
+- **`A4-11`:** [`A4-11-api-idempotency-conflict.png`](duc/A4-11-api-idempotency-conflict.png) – Xác nhận HTTP 409 khi tái sử dụng key với payload khác.
+- **`A4-12`:** [`A4-12-test-concurrency-parallel-requests.png`](duc/A4-12-test-concurrency-parallel-requests.png) – 5 request đồng thời cùng một key chỉ tạo một transaction.
+- **`A4-13`:** [`A4-13-secrets-manager-and-iam-labrole.png`](duc/A4-13-secrets-manager-and-iam-labrole.png) – Kiểm tra Secrets Manager, Python 3.12 và IAM `LabRole`.
+- **`A4-14`:** [`A4-14-cloudwatch-log-groups-retention.png`](duc/A4-14-cloudwatch-log-groups-retention.png) – Xác nhận 5 Log Groups có retention 7 ngày.
+- **`A4-15`:** [`A4-15-cloudwatch-dashboard-metrics.png`](duc/A4-15-cloudwatch-dashboard-metrics.png) – Kiểm tra dashboard và các metrics vận hành.
+- **`A4-16`:** [`A4-16-cloudwatch-alarm-lambda-errors.png`](duc/A4-16-cloudwatch-alarm-lambda-errors.png) – Xác nhận alarm lỗi Lambda ở trạng thái `OK`.
+- **`A4-17`:** [`A4-17-sqs-dead-letter-queue-test.png`](duc/A4-17-sqs-dead-letter-queue-test.png) – Gửi message kiểm thử vào SQS DLQ thành công.
+- **`A4-18`:** [`A4-18-api-auth-token-burst-test.png`](duc/A4-18-api-auth-token-burst-test.png) – Gửi đồng thời 30 request có thông tin xác thực không hợp lệ, xác nhận `/auth/token` trả HTTP 401 nhất quán dưới tải burst.
+- **`A4-19`:** [`A4-19-api-transfers-idempotency-burst-test.png`](duc/A4-19-api-transfers-idempotency-burst-test.png) – Gửi đồng thời 40 request cùng key, ghi nhận 1 HTTP 201, 39 HTTP 200 và một transaction ID duy nhất.
+
+---
+
 ## 3. Tiêu chuẩn tính xác thực & Liêm chính học thuật
-- Toàn bộ ảnh minh chứng được chụp trực tiếp từ các phiên AWS Academy Learner Lab của sinh viên **Nguyễn Nguyên** trong đợt thực hành Tuần 4 (26/10/2026 – 30/10/2026).
-- Giữ nguyên toàn bộ giao diện trình duyệt bao gồm Account ID `930162821234`, Region `us-east-1` và dấu mốc thời gian thực tế, không can thiệp số liệu.
+- Toàn bộ ảnh minh chứng được chụp trực tiếp từ các phiên AWS Academy Learner Lab của **Nguyễn Nguyên** và **Vũ Minh Đức** trong đợt thực hành Tuần 4.
+- Giữ nguyên giao diện và số liệu gốc, bao gồm Account ID `930162821234` (Nguyễn Nguyên), `487906062447` (Vũ Minh Đức) và Region `us-east-1`; thao tác chuẩn hóa chỉ đổi tên tệp và đồng bộ danh mục Markdown.
+- Ảnh A4-03 đã được che riêng giá trị demo code và JWT trước khi công khai; các trường kết quả kiểm thử vẫn được giữ nguyên.
 
