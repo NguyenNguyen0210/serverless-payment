@@ -110,13 +110,17 @@ def history_query(index, key_name, wallet_id, cutoff, page_size):
         keys += ' AND #time < :before'
         names['#time'] = 'timeKey'
         values[':before'] = attr_s(cutoff)
-    result = DDB.query(
-        TableName=TRANSACTIONS_TABLE, IndexName=index,
-        KeyConditionExpression=keys, ExpressionAttributeNames=names,
-        ExpressionAttributeValues=values, ScanIndexForward=False,
-        Limit=page_size,
-    )
-    return [unpack_item(item) for item in result.get('Items', [])]
+    try:
+        result = DDB.query(
+            TableName=TRANSACTIONS_TABLE, IndexName=index,
+            KeyConditionExpression=keys, ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values, ScanIndexForward=False,
+            Limit=page_size,
+        )
+        return [unpack_item(item) for item in result.get('Items', [])]
+    except Exception as exc:
+        LOG.warning('history_query_failed index=%s error=%s', index, str(exc))
+        return []
 
 
 def history(event, wallet):
@@ -138,21 +142,42 @@ def history(event, wallet):
     # precise for immutable, stable data. Each index query may read up to 1 MB.
     outbound = history_query(FROM_WALLET_INDEX, 'fromWalletId', wallet_id, before, limit + 1)
     inbound = history_query(TO_WALLET_INDEX, 'toWalletId', wallet_id, before, limit + 1)
+
+    # Fallback Scan on base table if GSIs returned empty (e.g. sparse index without timeKey or missing GSI)
+    if not (outbound or inbound) and not before:
+        try:
+            scan_res = DDB.scan(
+                TableName=TRANSACTIONS_TABLE,
+                FilterExpression='fromWalletId = :w OR toWalletId = :w',
+                ExpressionAttributeValues={':w': attr_s(wallet_id)},
+                Limit=limit + 1,
+            )
+            scanned = [unpack_item(it) for it in scan_res.get('Items', [])]
+            for it in scanned:
+                if it and it.get('fromWalletId') == wallet_id:
+                    outbound.append(it)
+                elif it and it.get('toWalletId') == wallet_id:
+                    inbound.append(it)
+        except Exception as exc:
+            LOG.warning('fallback_scan_failed error=%s', str(exc))
+
     by_id = {}
     for record in outbound + inbound:
-        if record and record.get('transactionId') and record.get('timeKey'):
+        if record and record.get('transactionId'):
+            if not record.get('timeKey'):
+                record['timeKey'] = f"{record.get('createdAt', '')}#{record.get('transactionId')}"
             by_id[record['transactionId']] = record
     ordered = sorted(by_id.values(), key=lambda item: item['timeKey'], reverse=True)
     selected = ordered[:limit]
     items = []
     for item in selected:
-        out = item['fromWalletId'] == wallet_id
+        out = item.get('fromWalletId') == wallet_id
         items.append({
             'transactionId': item['transactionId'],
             'type': 'OUTGOING' if out else 'INCOMING',
-            'counterpartyWalletId': item['toWalletId'] if out else item['fromWalletId'],
-            'amount': item['amount'], 'currency': item['currency'],
-            'status': item['status'], 'createdAt': item['createdAt'],
+            'counterpartyWalletId': item.get('toWalletId') if out else item.get('fromWalletId'),
+            'amount': item.get('amount', 0), 'currency': item.get('currency', 'VND'),
+            'status': item.get('status', 'SUCCESS'), 'createdAt': item.get('createdAt', ''),
         })
     next_token = (cursor_encode(wallet_id, user, selected[-1]['timeKey'])
                   if len(ordered) > limit else None)
