@@ -16,7 +16,8 @@
   ```
 - **Nhánh chính (Default Branch):** `main`
 - **Video Demo nghiệm thu (Google Drive):** [https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
-- **Báo cáo tiến độ Tuần 4 & Nghiệm thu:** [docs/reports/week04-report.md](reports/week04-report.md)
+- **Báo cáo tiến độ Tuần 4 & Nghiệm thu:** [`docs/reports/week04-report.md`](reports/week04-report.md)
+- **Ghi chú về Commit 22:58 (01/11/2026):** Thao tác bổ sung tệp báo cáo Tuần 4 và liên kết Video Demo Google Drive vào repository sau khi nộp form.
 
 ---
 
@@ -47,6 +48,7 @@ Toàn bộ tài liệu kỹ thuật, mô hình CSDL 3 bảng, 5 API endpoints, b
 | `src/transaction_query/` | Tuần 3 – 4 | Mã nguồn hàm `serverless-payment-transaction-query` xử lý tra cứu chi tiết giao dịch theo ID cho các bên tham gia (Standalone). |
 | `scripts/create_tables.py` | Tuần 3 – 4 | Script khởi tạo hạ tầng 3 bảng DynamoDB On-Demand và 2 GSIs một cách an toàn và idempotent. |
 | `scripts/seed_wallets.py` | Tuần 2 – 4 | Script nạp dữ liệu số dư 4 ví mẫu (`W001` - `W004`) có kiểm tra điều kiện chống ghi đè số dư. |
+| scripts/cleanup_resources.py | Tuần 4 | Script dọn dẹp một chạm an toàn toàn bộ tài nguyên AWS sau khi bảo vệ đồ án kết thúc. |
 | `tests/` | Tuần 3 – 4 | Bộ 56 unit test cases tự động (`test_auth.py`, `test_transfer.py`, `test_query.py`) đạt 100% Passed không phụ thuộc network/AWS. |
 | `tests/events/` | Tuần 3 – 4 | Thư mục 11 payload JSON sự kiện mẫu phục vụ kiểm thử console độc lập cho cả 5 hàm Lambda. |
 | `requirements-layer.txt` | Tuần 2 – 4 | Khai báo dependency `PyJWT==2.10.1` phục vụ đóng gói Lambda Layer. |

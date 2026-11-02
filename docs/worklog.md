@@ -73,17 +73,19 @@
 
 ## 4. NHẬT KÝ CHI TIẾT TUẦN 4 (26/10/2026 – 01/11/2026)
 
-### 4.1. Nguyễn Nguyên (8,00 giờ)
-- **B4-1 (2,0h):** Kiểm thử tích hợp toàn bộ 5 API endpoints qua Postman và CloudShell: cấp token, xem ví chính chủ, chặn xem ví người khác (403), chuyển tiền (201), xem chi tiết và lịch sử giao dịch. *(Minh chứng: `B4-01` -> `B4-08`)*.
-- **B4-2 (2,0h):** Kiểm tra bảo mật JWT, IAM `LabRole`, Secrets Manager, kiểm thử chống lặp Idempotent Replay (200 OK) và xung đột payload (409 Conflict). *(Minh chứng: `B4-10`, `B4-11`, `B4-13`)*.
-- **B4-3 (2,0h):** Kiểm thử giới hạn tốc độ Route Throttling (HTTP 429) trên route token (30 reqs) và transfers (40 reqs); kiểm tra CloudWatch Dashboard/Alarms và gửi message kiểm thử vào SQS DLQ. *(Minh chứng: `B4-14` -> `B4-19`)*.
-- **B4-4 (2,0h):** Nâng cấp hàm `wallet_query` với cơ chế Fallback Scan dự phòng, rà soát chi phí Learner Lab (~$0,45), hoàn thiện 19 ảnh minh chứng [`evidence/week04/nguyen/`](../evidence/week04/nguyen/) và hồ sơ báo cáo nghiệm thu cuối kỳ.
+> **Ghi chú minh bạch về mốc commit sau giờ nộp form:** Commit [`314106a`](https://github.com/NguyenNguyen0210/serverless-payment/commit/314106a) lúc 22:58 ngày 01/11/2026 (sau mốc nộp form lúc 22:54) là thao tác bổ sung tệp báo cáo Tuần 4 ([`docs/reports/week04-report.md`](reports/week04-report.md)) và liên kết Video Demo Google Drive vào repository để hoàn thiện hồ sơ lưu trữ theo đúng quy chuẩn dự án.
 
-### 4.2. Vũ Minh Đức (8,00 giờ)
-- **A4-1 (2,0h):** Kiểm thử tính nguyên tử và điều kiện rollback khi số dư ví nguồn không đủ, bảo đảm không xảy ra tình trạng trừ tiền một phía.
-- **A4-2 (2,0h):** Kiểm thử tải tranh chấp đồng thời (Concurrency): bắn song song 5 requests cùng `CONCURRENT_KEY`, chứng minh hệ thống không nhân bản giao dịch hay trừ tiền 2 lần. *(Minh chứng: `B4-12`)*.
-- **A4-3 (2,0h):** Đối soát số dư trên DynamoDB Console: ví `W001` (73k -> 63k VND) và `W002` (77k -> 87k VND), bảo toàn tuyệt đối tổng 150k VND. *(Minh chứng: `B4-09`)*.
-- **A4-4 (2,0h):** Rà soát toàn bộ tài liệu kỹ thuật, hợp đồng API, ma trận kiểm thử và phối hợp xây dựng kịch bản video demo nghiệm thu đồ án.
+### 4.1. Nguyễn Nguyên (8,00 giờ thực tế)
+- **B4-1 (2,0h) – Thứ Hai 26/10/2026 (19:30 – 21:30):** Kiểm thử tích hợp toàn bộ 5 API endpoints qua Postman và CloudShell: cấp token, xem ví chính chủ, chặn xem ví người khác (403), chuyển tiền (201), xem chi tiết và lịch sử giao dịch. *(Minh chứng: [`B4-01`](../evidence/week04/nguyen/B4-01-aws-environment-and-resources.png) $\rightarrow$ [`B4-08`](../evidence/week04/nguyen/B4-08-api-wallet-transactions-history.png))*.
+- **B4-2 (2,0h) – Thứ Tư 28/10/2026 (19:30 – 21:30):** Kiểm tra bảo mật JWT, IAM `LabRole`, Secrets Manager, kiểm thử chống lặp Idempotent Replay (200 OK) và xung đột payload (409 Conflict). *(Minh chứng: [`B4-10`](../evidence/week04/nguyen/B4-10-api-idempotency-replay-success.png), [`B4-11`](../evidence/week04/nguyen/B4-11-api-idempotency-conflict.png), [`B4-13`](../evidence/week04/nguyen/B4-13-secrets-manager-and-iam-labrole.png))*.
+- **B4-3 (2,0h) – Thứ Sáu 30/10/2026 (08:30 – 10:30):** Kiểm thử giới hạn tốc độ Route Throttling (HTTP 429) trên route token (30 reqs) và transfers (40 reqs); kiểm tra CloudWatch Dashboard/Alarms và gửi message kiểm thử vào SQS DLQ. *(Minh chứng: [`B4-14`](../evidence/week04/nguyen/B4-14-cloudwatch-log-groups-retention.png) $\rightarrow$ [`B4-19`](../evidence/week04/nguyen/B4-19-api-throttling-transfers-test.png))*.
+- **B4-4 (2,0h) – Chủ Nhật 01/11/2026 (14:00 – 16:00):** Nâng cấp hàm `wallet_query` với cơ chế Fallback Scan dự phòng, rà soát chi phí Learner Lab (~$0.45), tổng hợp đủ 19 ảnh minh chứng [`evidence/week04/nguyen/`](../evidence/week04/nguyen/), hoàn thiện hồ sơ báo cáo nghiệm thu cuối kỳ và cùng Đức quay video demo.
+
+### 4.2. Vũ Minh Đức (8,00 giờ thực tế)
+- **A4-1 (2,0h) – Thứ Ba 27/10/2026 (19:30 – 21:30):** Kiểm tra tính nguyên tử và điều kiện rollback của DynamoDB TransactWriteItems khi số dư ví nguồn không đủ, bảo đảm không xảy ra tình trạng trừ tiền một phía. *(Minh chứng: [`A4-06`](../evidence/week04/duc/A4-06-api-transfer-success.png))*.
+- **A4-2 (2,0h) – Thứ Năm 29/10/2026 (19:30 – 21:30):** Kiểm thử tải tranh chấp đồng thời (Concurrency): bắn song song 5 requests cùng `CONCURRENT_KEY`, chứng minh hệ thống không nhân bản giao dịch hay trừ tiền 2 lần; kiểm thử Replay/Conflict. *(Minh chứng: [`A4-10`](../evidence/week04/duc/A4-10-api-idempotency-replay-success.png) $\rightarrow$ [`A4-12`](../evidence/week04/duc/A4-12-test-concurrency-parallel-requests.png))*.
+- **A4-3 (2,0h) – Thứ Bảy 31/10/2026 (09:00 – 11:00):** Đối soát số dư trên DynamoDB Console: ví `W001` (73k $\rightarrow$ 63k VND) và `W002` (77k $\rightarrow$ 87k VND), bảo toàn tuyệt đối tổng 150k VND; hoàn thiện 19 ảnh minh chứng Đức đưa lên nhánh `main`. *(Minh chứng: [`A4-01`](../evidence/week04/duc/A4-01-aws-environment-and-resources.png) $\rightarrow$ [`A4-19`](../evidence/week04/duc/A4-19-api-transfers-idempotency-burst-test.png))*.
+- **A4-4 (2,0h) – Chủ Nhật 01/11/2026 (19:30 – 21:30):** Rà soát toàn bộ tài liệu kỹ thuật, hợp đồng API, ma trận kiểm thử và cùng Nguyên quay video demo nghiệm thu đồ án lưu tại Google Drive.
 
 ---
 

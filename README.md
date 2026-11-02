@@ -288,3 +288,11 @@ Hệ thống hỗ trợ kiểm thử trực tiếp cả 5 endpoints bằng lện
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+### 5. Dọn dẹp tài nguyên AWS sau bảo vệ đồ án
+
+Sau khi hoàn tất buổi vấn đáp/nghiệm thu đồ án, nhóm thực thi lệnh dọn dẹp một chạm toàn bộ tài nguyên trên Learner Lab:
+
+```bash
+python scripts/cleanup_resources.py --confirm
+```
