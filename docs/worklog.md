@@ -73,7 +73,7 @@
 
 ## 4. NHẬT KÝ CHI TIẾT TUẦN 4 (26/10/2026 – 01/11/2026)
 
-> **Ghi chú minh bạch về mốc commit sau giờ nộp form:** Commit [`314106a`](https://github.com/NguyenNguyen0210/serverless-payment/commit/314106a) lúc 22:58 ngày 01/11/2026 (sau mốc nộp form lúc 22:54) là thao tác bổ sung tệp báo cáo Tuần 4 ([`docs/reports/week04-report.md`](reports/week04-report.md)) và liên kết Video Demo Google Drive vào repository để hoàn thiện hồ sơ lưu trữ theo đúng quy chuẩn dự án.
+> **Ghi chú minh bạch về mốc commit sau giờ nộp form:** Commit [314106a](https://github.com/NguyenNguyen0210/serverless-payment/commit/314106a) lúc 22:58 ngày 01/11/2026 (sau mốc nộp form lúc 22:54) là thao tác bổ sung liên kết Video Demo Google Drive và cập nhật các tài liệu vào repository để hoàn thiện hồ sơ lưu trữ theo đúng quy chuẩn dự án.
 
 ### 4.1. Nguyễn Nguyên (8,00 giờ thực tế)
 - **B4-1 (2,0h) – Thứ Hai 26/10/2026 (19:30 – 21:30):** Kiểm thử tích hợp toàn bộ 5 API endpoints qua Postman và CloudShell: cấp token, xem ví chính chủ, chặn xem ví người khác (403), chuyển tiền (201), xem chi tiết và lịch sử giao dịch. *(Minh chứng: [`B4-01`](../evidence/week04/nguyen/B4-01-aws-environment-and-resources.png) $\rightarrow$ [`B4-08`](../evidence/week04/nguyen/B4-08-api-wallet-transactions-history.png))*.

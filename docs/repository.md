@@ -16,7 +16,6 @@
   ```
 - **Nhánh chính (Default Branch):** `main`
 - **Video Demo nghiệm thu (Google Drive):** [https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link](https://drive.google.com/drive/folders/1FnaAXXF94_mIkvJ5nLq5XsgekHrrIcKa?usp=drive_link)
-- **Báo cáo tiến độ Tuần 4 & Nghiệm thu:** [`docs/reports/week04-report.md`](reports/week04-report.md)
 - **Ghi chú về Commit 22:58 (01/11/2026):** Thao tác bổ sung tệp báo cáo Tuần 4 và liên kết Video Demo Google Drive vào repository sau khi nộp form.
 
 ---
